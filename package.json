@@ -5,14 +5,17 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start" : "node server.js",
-    "develop" : "nodemon server.js"
+    "start": "node server.js",
+    "develop": "nodemon server.js"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
     "express": "^4.17.1",
-    "node-screenlogic": "^1.2.1"
+    "node-screenlogic": "^1.3.0",
+
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "nodemon": "^2.0.1"
+  }
 }

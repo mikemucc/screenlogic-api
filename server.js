@@ -1,10 +1,12 @@
-
+#!/usr/bin/env node
 'use strict';
-const expressPort = 3000
+const expressPort = 3000;
 var express = require('express');
 var app = express();
 const ScreenLogic = require('node-screenlogic');
-const pollInterval = 5000
+const pollInterval = 5000;
+
+const clientInt = 0;
 
 const commonCircuitIds = {
   'pool' : 505,
@@ -14,62 +16,148 @@ const commonCircuitIds = {
 const poolSpaInfo = {
   'meta' : 
     {
-      'lastUpdated' : Date.now(),
-      'tempInCelcius' : false
+      'lastUpdated' : null,
+      'tempInCelcius' : null,
+      'successfulPolling' : false,
+      'server' : {
+        'ipAddress' : null,
+        'port' : null,
+        'name' : null
+
+      }
     }
 };
 
 const rawObjects = {
   'meta' : 
   {
-    'lastUpdated' : Date.now()
+    'lastUpdated' : null
   }
 };
 const rawPumpStatus = {}
+const heaterModes = {
+  "0" : "Off",
+  "1" : "Solar",
+  "2" : "Solar Preferred",
+  "3" : "Heat Pump",
+  "4" : "Don't Change"
+}
+const heaterStatus = {
+  "0" : 'Off',
+  "1" : 'Solar Heater On',
+  "2" : "Heat Pump On"
+}
 
+var slIpAddress = null;
+var slPort = null;
+if (process.env.SL_IP_ADDRESS && process.env.SL_PORT){
+  slIpAddress = process.env.SL_IP_ADDRESS;
+  slPort = process.env.SL_PORT;
+}
 
-function initScreenLogic(circuitId = null, newState = null){
-  // var connection = {}
-
-  var finder = new ScreenLogic.FindUnits();
-  finder.search();
-  finder.on('serverFound', function(server) 
-      {
-      var connection = new ScreenLogic.UnitConnection(server)
-      // console.log(server)
-      // console.log(connection);
-      poolSpaInfo.meta.server = {
-        "ipAddress" : server.address,
-        "port" : server.port,
-        "name" : server.gatewayName
+function findScreenLogic(){
+  if (slIpAddress && slPort){
+    // console.log(server)
+    // console.log(connection);
+    poolSpaInfo.meta.server = {
+      "ipAddress" : slIpAddress,
+      "port" : slPort,
+      "name" : slIpAddress,
+    }
+  } else {
+    var finder = new ScreenLogic.FindUnits();
+    finder.search();
+    finder.on('serverFound', function(server) 
+        {
+          console.log('Found ScreenLogic unit at: ' + server.address + ':' + server.port);
+          poolSpaInfo.meta.server = {
+            "ipAddress" : server.address,
+            "port" : server.port,
+            "name" : server.gatewayName
+          }
+        finder.close();
       }
-      finder.close();
-      if (circuitId && (newState != null)){
-        console.log('Calling setNewCircuitState')
-        setNewCircuitState(connection, circuitId, newState);
-      } else {
-        console.log('Polling Screenlogic...');
-        getAllpoolSpaInfo(connection);
-      }
+    );
+  };
+}
+
+function getSlClient(){
+  var slIpAddress = poolSpaInfo.meta.server.ipAddress
+  var slPort = poolSpaInfo.meta.server.port
+  return new ScreenLogic.UnitConnection(slPort, slIpAddress)
+}
+
+function resolveBody(bodyInt){
+  var bodyText = new String
+  if (bodyInt == 0){
+    bodyText = 'pool'
+  } else if (bodyInt == 1){
+    bodyText = 'spa'
+  } else {
+    throw "Out of Range Exception: body value must be 0 (pool) or 1 (spa)."
   }
-  );
-};
+  return(bodyText)
+}
 
-function setNewCircuitState(client, circuitId, state){
+function setHeatMode(body, heatMode){
+  // Body: pool = 0; spa = 1
+  // heatMode: 0: "Off", 1: "Solar", 2 : "Solar Preferred", 3 : "Heat Pump", 4: "Don't Change"
+  var client = getSlClient();
+  var heatBody = resolveBody(body)
+  client.on('loggedIn', function(){
+    console.log('Logged in, setting heater state for ' + heatBody + ' to ' + heaterModes[heatMode])
+    this.setHeatMode(clientInt, body, heatMode);
+  }).on('heatModeChanged', function() {
+    console.log("Changed " + heatBody + " heater state to " + heaterModes[heatMode])
+    client.close();
+  }).on('loginFailed', function() {
+    console.log('Unable to login... refreshing client.');
+    client.close();
+    findScreenLogic();
+  });
+  client.connect();
+}
+
+function setHeatSetPoint(body, temp){
+  var client = getSlClient();
+  console.log(client);
+  var heatBody = resolveBody(body);
+  console.log('Setting heater setpoint for ' + heatBody + ' to ' + temp + ' degrees.');
+  client.on('loggedIn', function(){
+    console.log('Logged in...');
+    this.setSetPoint(clientInt, body, temp);
+  }).on('setPointChanged', function(){
+    console.log(heatBody + ' setpoint Successfully changed to ' + temp)
+  }).on('loginFailed', function() {
+    console.log('Unable to login... refreshing client.');
+    client.close();
+    findScreenLogic();
+  });
+  client.connect();
+}
+
+function setNewCircuitState(circuitId, state){
+  var client = getSlClient();
   console.log('Invoking change state with state = ' + state +' and circuit ID = ' + circuitId)
   client.on('loggedIn', function(){
         console.log('Logged in, sending state ' + state +' to circuit ID ' + circuitId)
-        this.setCircuitState(0, circuitId, state);
+        this.setCircuitState(clientInt, circuitId, state);
       }).on('circuitStateChanged', function() {
         var newState = (state == 0 ) ? 'off' : 'on';
         console.log(`Circuit ${circuitId} set to ${newState}.`);
         client.close();
+      }).on('loginFailed', function() {
+        console.log('Unable to login...refreshing client.');
+        client.close();
+        findScreenLogic();
       });
       client.connect()
 };
 
-function getAllpoolSpaInfo(client){
+function getAllpoolSpaInfo(){
+  var client = getSlClient();
   client.on('loggedIn', function() {
+      // console.log('Getting all info...')
       this.getVersion();
     }).on('version', function(version) {
       this.getPoolStatus();
@@ -80,17 +168,6 @@ function getAllpoolSpaInfo(client){
       // console.log(' version=' + version.version);
     }).on('poolStatus', function(status) {
       this.getChemicalData();
-      var heaterModes = {
-        "0" : "Off",
-        "1" : "Solar",
-        "2" : "Solar Preferred",
-        "3" : "Heat Pump"
-      }
-      var heaterStatus = {
-        "0" : 'Off',
-        "1" : 'Solar Heater On',
-        "2" : "Heat Pump On"
-      }
       poolSpaInfo.meta.airTemp = status.airTemp;
       poolSpaInfo.meta.activeAlarms = status.alarms;
       poolSpaInfo.meta.serviceMode = status.isDeviceServiceMode();
@@ -168,47 +245,77 @@ function getAllpoolSpaInfo(client){
         'interfaceTabFlags' : config.interfaceTabFlags
       };
       rawObjects.config = config
+      poolSpaInfo.meta.successfulPolling = true
+      poolSpaInfo.meta.lastUpdated = Date.now();
+      rawObjects.meta.lastUpdated = Date.now();
+      // console.log('Info Refreshed')
       client.close();
     }).on('loginFailed', function() {
-      console.log(' unable to login (wrong password?)');
+      console.log('Unable to login...refreshing client.');
       client.close();
+      findScreenLogic();
     });
     client.connect();
-    poolSpaInfo.meta.lastUpdated = Date.now();
-    rawObjects.meta.lastUpdated = Date.now();
 };
 
 function setPoolModeOn() {
-  initScreenLogic(505, 1)
+  setNewCircuitState(505, 1)
 };
 
 function setPoolModeOff() {
-  initScreenLogic(505, 0)
+  setNewCircuitState(505, 0)
 };
 
 function setSpaModeOn() {
-  initScreenLogic(500, 1)
+  setNewCircuitState(500, 1)
 };
 
 function setSpaModeOff() {
-  initScreenLogic(500, 0)
+  setNewCircuitState(500, 0)
 };
+
+function sleep(millis) {
+  return new Promise(resolve => setTimeout(resolve, millis));
+}
+
 
 
 // Express.js endpoint logic below this line
 // --------------------------------
+
+const error503Object = {
+  "code" : "503",
+  "message" : "Server has not completed its initial data load... please try again in a moment."
+}
+
 var server = app.listen(expressPort, function(){
-  console.log('Getting initial info from Screenlogic...')
-  initScreenLogic('getInfo');
-  console.log('Scheduling periodic updates of pool data...')
+  if(slIpAddress && slPort){
+    console.log('Connecting to ScreenLogic at ' + slIpAddress + ' on port ' + slPort + '...')
+  } else {
+    console.log('Finding Screenlogic Units...');
+  }
+  findScreenLogic();
+  sleep(5000);
+  console.log('Pool data update interval is ' + pollInterval + 'ms.')
   setInterval(function() {
-    initScreenLogic('getInfo');
+    getAllpoolSpaInfo();
   }, pollInterval);
+  if(!poolSpaInfo.meta.successfulPolling){
+    sleep(5000)
+  };
   console.log("Express server listening on port " + expressPort)
-  
 });
 
-app.get('/', function(req,res){
+function checkGlobals(){
+  if (poolSpaInfo.meta.successfulPolling){
+    return true
+  } else {
+    return false
+  }
+
+}
+
+app.get('/', function(req, res){
     var response = slash();
     res.json(response);
 });
@@ -291,21 +398,119 @@ app.put('/api/v1/:circuit/:state', function(req,res){
     res.status(418).send('{"Error" : "State should be 0 (off) or 1(on)."}');
     return;
   }
-  if (req.params.circuit < 500 || req.params.circuit > 600){
+  if (req.params.circuit < 500 || req.params.circuit > 599){
     res.status(418).send('{"Error" : "Circuit should be an integer between 500 and 600"}');
     return
   }
-  initScreenLogic(changeCircuit, stateInt)
+  setNewCircuitState(changeCircuit, stateInt)
+  getAllpoolSpaInfo();
   res.status(200).send( '{"Circuit" : '+changeCircuit+', \n "NewState" : '+stateInt+'}')
 });
 
-app.put('/api/v1/spa/heater/setPoint/:temp', function(req, res){
+app.put('/api/v1/spa/heater/setpoint/:temp', function(req, res){
   console.log(req.params)
-  res.json(req.params)
-  
+  if (poolSpaInfo.meta.successfulPolling){
+    var targetTemp = parseInt(req.params.temp);
+    var maxTemp = parseInt(poolSpaInfo.controllerConfig.spaMaxSetPoint);
+    var minTemp = parseInt(poolSpaInfo.controllerConfig.spaMinSetPoint);
+    // console.log(targetTemp)
+    if (minTemp <= targetTemp && maxTemp >= targetTemp){
+      console.log('Valid Setpoint Temperature')
+      setHeatSetPoint(1, targetTemp);
+      var response = {
+        "spaSetpoint" : targetTemp,
+        "success" : true
+      }
+      res.json(response)
+    } else {
+      console.log('Invalid Setpoint Temperature')
+      var setPointError = {
+        "code" : "418",
+        "message" : 'Setpoint should be between '+ minTemp +' and ' + maxTemp
+      }
+      res.status(418).send(setPointError)
+    }
+  } else {
+    res.status(503).send(error503Object)
+}
 });
-app.put('/api/v1/spa/heater/:onOff', function(req, res){
+app.put('/api/v1/spa/heater/mode/:mode', function(req, res){
+  // heatMode: 0: "Off", 1: "Solar", 2 : "Solar Preferred", 3 : "Heat Pump", 4: "Don't Change"
   console.log(req.params)
-  res.json(req.params)
-  
+  if (poolSpaInfo.meta.successfulPolling){
+    var targetHeatMode = parseInt(req.params.mode);
+    if (targetHeatMode >= 0 && targetHeatMode <= 4){
+      setHeatMode(1, targetHeatMode)
+      var response = {
+        "spaHeaterMode" : targetHeatMode,
+        "HeaterModeMeaning" : heaterModes[targetHeatMode],
+        "success" : true
+      }
+      res.json(response)
+    } else {
+      var heatModeError = {
+        "code" : "418",
+        "message" : "Invalid Heat Mode",
+        "Valid Heat Modes" : heaterModes
+      }
+      res.status(418).send(heatModeError)
+    }
+  } else {
+    res.status(503).send(error503Object)
+  }
+});
+
+app.put('/api/v1/pool/heater/setpoint/:temp', function(req, res){
+  console.log(req.params)
+  if (poolSpaInfo.meta.successfulPolling){
+    var targetTemp = parseInt(req.params.temp);
+    var maxTemp = parseInt(poolSpaInfo.controllerConfig.poolMaxSetPoint);
+    var minTemp = parseInt(poolSpaInfo.controllerConfig.poolMinSetPoint);
+    // console.log(targetTemp)
+    if (minTemp <= targetTemp && maxTemp >= targetTemp){
+      console.log('Valid Setpoint Temperature')
+      setHeatSetPoint(0, targetTemp);
+      var response = {
+        "poolSetpoint" : targetTemp,
+        "success" : true
+      }
+      res.json(response)
+    } else {
+      console.log('Invalid Setpoint Temperature')
+      res.status(418).send('Error: Setpoint should be between '+ minTemp +' and ' + maxTemp + '.\n')
+    }
+  } else {
+    res.status(503).send(error503Object)
+}
+});
+app.put('/api/v1/pool/heater/mode/:mode', function(req, res){
+  // heatMode: 0: "Off", 1: "Solar", 2 : "Solar Preferred", 3 : "Heat Pump", 4: "Don't Change"
+  console.log(req.params)
+  if (poolSpaInfo.meta.successfulPolling){
+    var targetHeatMode = parseInt(req.params.mode);
+    if (targetHeatMode >= 0 && targetHeatMode <= 4){
+      setHeatMode(0, targetHeatMode)
+      var response = {
+        "poolHeaterMode" : targetHeatMode,
+        "HeaterModeMeaning" : heaterModes[targetHeatMode],
+        "success" : true
+      }
+      res.json(response)
+    } else {
+      var heatModeError = {
+        "code" : "418",
+        "message" : "Invalid Heat Mode",
+        "Valid Heat Modes" : heaterModes
+      }
+      res.status(418).send(heatModeError)
+    }
+  } else {
+    res.status(503).send(error503Object)
+  }
+});
+
+app.get('/connection', function(req, res){
+  findScreenLogic();
+  var slConnection = getSlClient()
+  res.json(slConnection)
 });
