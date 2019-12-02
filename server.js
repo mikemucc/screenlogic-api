@@ -1,16 +1,30 @@
 #!/usr/bin/env node
 'use strict';
-const expressPort = 3000;
+
 var express = require('express');
 var app = express();
+var expressPort = process.env.PORT || 3000;
 const ScreenLogic = require('node-screenlogic');
-const pollInterval = 5000;
+//defaulting to 5 second poll intervals. 
+// Override with POLL_INTERVAL environment variable.
+const pollInterval = process.env.POLL_INTERVAL || 5000;
+const baseApiPath = process.env.BASE_PATH || '/api';
 
 const clientInt = 0;
 
-const commonCircuitIds = {
+const commonCircuitMap = {
   'pool' : 505,
-  'spa' : 500
+  '505' : 'pool',
+  'spa' : 500,
+  '500' : 'spa'
+}
+
+//quick way to convert body integer to name.
+const bodyMap = {
+  "0" : 'pool',
+  'pool' : 0,
+  "1" : 'spa',
+  "spa" : 1,
 }
 
 const poolSpaInfo = {
@@ -23,7 +37,6 @@ const poolSpaInfo = {
         'ipAddress' : null,
         'port' : null,
         'name' : null
-
       }
     }
 };
@@ -48,11 +61,16 @@ const heaterStatus = {
   "2" : "Heat Pump On"
 }
 
+// Read Configs from the Environment
 var slIpAddress = null;
 var slPort = null;
+var slName = null;
 if (process.env.SL_IP_ADDRESS && process.env.SL_PORT){
   slIpAddress = process.env.SL_IP_ADDRESS;
   slPort = process.env.SL_PORT;
+}
+if (process.env.SL_NAME){
+  slName = process.env.SL_NAME;
 }
 
 function findScreenLogic(){
@@ -63,6 +81,9 @@ function findScreenLogic(){
       "ipAddress" : slIpAddress,
       "port" : slPort,
       "name" : slIpAddress,
+    }
+    if (slName){
+      poolSpaInfo.meta.server.name = slName;
     }
   } else {
     var finder = new ScreenLogic.FindUnits();
@@ -87,23 +108,23 @@ function getSlClient(){
   return new ScreenLogic.UnitConnection(slPort, slIpAddress)
 }
 
-function resolveBody(bodyInt){
-  var bodyText = new String
-  if (bodyInt == 0){
-    bodyText = 'pool'
-  } else if (bodyInt == 1){
-    bodyText = 'spa'
-  } else {
-    throw "Out of Range Exception: body value must be 0 (pool) or 1 (spa)."
-  }
-  return(bodyText)
-}
+// function resolveBodyInt(bodyInt){
+//   var bodyText = new String
+//   if (bodyInt == 0){
+//     bodyText = 'pool'
+//   } else if (bodyInt == 1){
+//     bodyText = 'spa'
+//   } else {
+//     throw "Out of Range Exception: body value must be 0 (pool) or 1 (spa)."
+//   }
+//   return(bodyText)
+// }
 
 function setHeatMode(body, heatMode){
   // Body: pool = 0; spa = 1
   // heatMode: 0: "Off", 1: "Solar", 2 : "Solar Preferred", 3 : "Heat Pump", 4: "Don't Change"
   var client = getSlClient();
-  var heatBody = resolveBody(body)
+  var heatBody = bodyMap[body]
   client.on('loggedIn', function(){
     console.log('Logged in, setting heater state for ' + heatBody + ' to ' + heaterModes[heatMode])
     this.setHeatMode(clientInt, body, heatMode);
@@ -121,15 +142,15 @@ function setHeatMode(body, heatMode){
 function setHeatSetPoint(body, temp){
   var client = getSlClient();
   console.log(client);
-  var heatBody = resolveBody(body);
+  var heatBody = bodyMap[body];
   console.log('Setting heater setpoint for ' + heatBody + ' to ' + temp + ' degrees.');
   client.on('loggedIn', function(){
-    console.log('Logged in...');
-    this.setSetPoint(clientInt, body, temp);
-  }).on('setPointChanged', function(){
-    console.log(heatBody + ' setpoint Successfully changed to ' + temp)
-  }).on('loginFailed', function() {
-    console.log('Unable to login... refreshing client.');
+      console.log('Logged in...');
+      this.setSetPoint(clientInt, body, temp);
+    }).on('setPointChanged', function(){
+      console.log(heatBody + ' setpoint Successfully changed to ' + temp)
+    }).on('loginFailed', function() {
+      console.log('Unable to login... refreshing client.');
     client.close();
     findScreenLogic();
   });
@@ -140,18 +161,18 @@ function setNewCircuitState(circuitId, state){
   var client = getSlClient();
   console.log('Invoking change state with state = ' + state +' and circuit ID = ' + circuitId)
   client.on('loggedIn', function(){
-        console.log('Logged in, sending state ' + state +' to circuit ID ' + circuitId)
-        this.setCircuitState(clientInt, circuitId, state);
-      }).on('circuitStateChanged', function() {
-        var newState = (state == 0 ) ? 'off' : 'on';
-        console.log(`Circuit ${circuitId} set to ${newState}.`);
-        client.close();
-      }).on('loginFailed', function() {
-        console.log('Unable to login...refreshing client.');
-        client.close();
-        findScreenLogic();
-      });
-      client.connect()
+      console.log('Logged in, sending state ' + state +' to circuit ID ' + circuitId)
+      this.setCircuitState(clientInt, circuitId, state);
+    }).on('circuitStateChanged', function() {
+      var newState = (state == 0 ) ? 'off' : 'on';
+      console.log(`Circuit ${circuitId} set to ${newState}.`);
+      client.close();
+    }).on('loginFailed', function() {
+      console.log('Unable to login...refreshing client.');
+    client.close();
+    findScreenLogic();
+  });
+  client.connect()
 };
 
 function getAllpoolSpaInfo(){
@@ -177,24 +198,28 @@ function getAllpoolSpaInfo(){
           'pool' : {          
             'waterTemp' : status.currentTemp[0],
             'active' : status.isPoolActive(),
-            'heaterModeCode' : status.heatMode[0],
-            'heaterMode' : heaterModes[status.heatMode[0]],
-            'heaterActive' : (status.heatStatus[0] > 0),
-            'heaterActiveCode' : status.heatStatus[0],
-            'heaterActiveType' : heaterStatus[status.heatStatus[0]],
-            'heaterSetpoint' : status.setPoint[0],
             'airTemp' : status.airTemp,
+            'heater' : {
+              'modeCode' : status.heatMode[0],
+              'mode' : heaterModes[status.heatMode[0]],
+              'active' : (status.heatStatus[0] > 0),
+              'activeCode' : status.heatStatus[0],
+              'activeType' : heaterStatus[status.heatStatus[0]],
+              'setpoint' : status.setPoint[0],
+            }
           },
           'spa' : {
             'waterTemp' : status.currentTemp[1],
             'active' : status.isSpaActive(),
-            'heaterModeCode' : status.heatMode[1],
-            'heaterMode' : heaterModes[status.heatMode[1]],
-            'heaterActive' : (status.heatStatus[1] > 0),
-            'heaterActiveCode' : status.heatStatus[1],
-            'heaterActiveType': heaterStatus[status.heatStatus[1]],
-            'heaterSetpoint' : status.setPoint[1],
             'airTemp' : status.airTemp,
+            'heater' : {
+              'modeCode' : status.heatMode[1],
+              'mode' : heaterModes[status.heatMode[1]],
+              'active' : (status.heatStatus[1] > 0),
+              'activeCode' : status.heatStatus[1],
+              'activeType': heaterStatus[status.heatStatus[1]],
+              'setpoint' : status.setPoint[1],
+            }
           },
           'device' : {
             'currentStatus' : status.ok,
@@ -215,7 +240,7 @@ function getAllpoolSpaInfo(){
     }).on('chemicalData', function(chemData) {
       this.getSaltCellConfig();
       poolSpaInfo.chemistry = {
-          'meta'  : 'This data only valid if IntelliChem in installed',
+          'info'  : 'This data only valid if IntelliChem in installed',
           'isValid' : chemData.isValid,
           'error' : chemData.error,
           'calciumLSI' : chemData.calcium,
@@ -245,9 +270,16 @@ function getAllpoolSpaInfo(){
         'interfaceTabFlags' : config.interfaceTabFlags
       };
       rawObjects.config = config
-      poolSpaInfo.meta.successfulPolling = true
+      
       poolSpaInfo.meta.lastUpdated = Date.now();
       rawObjects.meta.lastUpdated = Date.now();
+      if (!poolSpaInfo.meta.successfulPolling){
+        console.log("Initial State Data loaded from ScreenLogic.")
+        // console.log('\n')
+        // console.log(poolSpaInfo)
+        // console.log('\n')
+      }
+      poolSpaInfo.meta.successfulPolling = true;
       // console.log('Info Refreshed')
       client.close();
     }).on('loginFailed', function() {
@@ -274,10 +306,6 @@ function setSpaModeOff() {
   setNewCircuitState(500, 0)
 };
 
-function sleep(millis) {
-  return new Promise(resolve => setTimeout(resolve, millis));
-}
-
 
 
 // Express.js endpoint logic below this line
@@ -295,99 +323,103 @@ var server = app.listen(expressPort, function(){
     console.log('Finding Screenlogic Units...');
   }
   findScreenLogic();
-  sleep(5000);
-  console.log('Pool data update interval is ' + pollInterval + 'ms.')
+  // sleep(5000);
+  console.log('Pool data update interval is ' + pollInterval/1000 + ' seconds.')
   setInterval(function() {
     getAllpoolSpaInfo();
   }, pollInterval);
-  if(!poolSpaInfo.meta.successfulPolling){
-    sleep(5000)
-  };
+  // if(!poolSpaInfo.meta.successfulPolling){
+  //   sleep(5000)
+  // };
   console.log("Express server listening on port " + expressPort)
 });
 
-function checkGlobals(){
-  if (poolSpaInfo.meta.successfulPolling){
-    return true
-  } else {
-    return false
-  }
-
-}
-
-app.get('/', function(req, res){
-    var response = slash();
+app.get('/health', function(req, res){
+    var response = {
+      'healthy' : poolSpaInfo.meta.successfulPolling
+    }
     res.json(response);
+    console.log('Returned ' + req.method + ' ' + req.route.path);
 });
 
-function slash(){
-    var message = {"done" : "yes"};
-    return message;
-};
 
-
-app.get('/api/v1/all', function(req, res){
+app.get(baseApiPath + '/all', function(req, res){
   console.log(req.ip);
   // console.log('All Pool Info: ' + poolSpaInfo);
-  res.json(poolSpaInfo);
+  if(poolSpaInfo.meta.successfulPolling){
+    res.json(poolSpaInfo);
+    console.log('Returned ' + req.method + ' ' + req.route.path);
+  } else {
+    res.json(error503Object)
+  }
 });
-app.get('/api/v1/raw', function(req, res){
+
+app.get(baseApiPath + '/raw', function(req, res){
   console.log(req.ip);
   // console.log('All Pool Info: ' + poolSpaInfo);
   res.json(rawObjects);
+  console.log('Returned ' + req.method + ' ' + req.route.path);
 });
 
-app.put('/api/v1/pool/on', function(req,res){
+app.put(baseApiPath + '/pool/on', function(req,res){
   console.log(req.ip);
   setPoolModeOn();
   var response = {
-    'action' : 'poolOn',
-    'sent' : 'true'
+    'body' : 'pool',
+    'action' : 'turn on',
+    'sent' : true
   }
   console.log('Sent poolOn to ScreenLogic')
   res.json(response)
+  console.log('Returned ' + req.method + ' ' + req.route.path);
 })
 
-app.put('/api/v1/pool/off', function(req,res){
+app.put(baseApiPath + '/pool/off', function(req,res){
   console.log(req.ip);
   setPoolModeOff();
   var response = {
-    'action' : 'poolOff',
+    'body'  : 'pool',
+    'action' : 'off',
     'sent' : true
   }
   console.log('Sent poolOff to ScreenLogic')
   res.json(response)
+  console.log('Returned ' + req.method + ' ' + req.route.path);
 });
 
-app.put('/api/v1/spa/on', function(req,res){
+app.put(baseApiPath + '/spa/on', function(req,res){
   console.log(req.ip);
   setSpaModeOn();
   var response = {
-    'action' : 'spaOn',
-    'sent' : 'true'
+    'body'  : 'spa',
+    'action' : 'on',
+    'sent' : true
   }
   console.log('Sent poolOn to ScreenLogic')
   res.json(response)
+  console.log('Returned ' + req.method + ' ' + req.route.path);
 })
 
-app.put('/api/v1/spa/off', function(req,res){
+app.put(baseApiPath + '/spa/off', function(req,res){
   console.log(req.ip);
   setSpaModeOff();
   var response = {
-    'action' : 'spaOff',
+    'body'  : 'spa',
+    'action' : 'off',
     'sent' : true
   }
   console.log('Sent poolOff to ScreenLogic')
   res.json(response)
+  console.log('Returned ' + req.method + ' ' + req.route.path);
 });
 
-app.put('/api/v1/:circuit/:state', function(req,res){
+app.put(baseApiPath + '/:circuit/:state', function(req,res){
   console.log(req.ip);
   console.log(req.params);
   var changeCircuit = parseInt(req.params.circuit);
   var stateInt = null;
   if (!req.params.circuit || !req.params.state){
-    res.status(406).send('{"Error" : "The format of this request is /api/v1/circuit/state. Circuit should be the number of the circuit. State should be 0 (off) or 1 (on)."}');
+    res.status(406).send('{"Error" : "The format of this request is /api/v1/circuit/state. Circuit should be the number of the circuit, an integer between 500 and 600. State should be 0 (off) or 1 (on)."}');
     return;
   }
   if (req.params.state.toUpperCase() == 'ON' || req.params.state == "1"){
@@ -404,105 +436,80 @@ app.put('/api/v1/:circuit/:state', function(req,res){
   }
   setNewCircuitState(changeCircuit, stateInt)
   getAllpoolSpaInfo();
-  res.status(200).send( '{"Circuit" : '+changeCircuit+', \n "NewState" : '+stateInt+'}')
-});
-
-app.put('/api/v1/spa/heater/setpoint/:temp', function(req, res){
-  console.log(req.params)
-  if (poolSpaInfo.meta.successfulPolling){
-    var targetTemp = parseInt(req.params.temp);
-    var maxTemp = parseInt(poolSpaInfo.controllerConfig.spaMaxSetPoint);
-    var minTemp = parseInt(poolSpaInfo.controllerConfig.spaMinSetPoint);
-    // console.log(targetTemp)
-    if (minTemp <= targetTemp && maxTemp >= targetTemp){
-      console.log('Valid Setpoint Temperature')
-      setHeatSetPoint(1, targetTemp);
-      var response = {
-        "spaSetpoint" : targetTemp,
-        "success" : true
-      }
-      res.json(response)
-    } else {
-      console.log('Invalid Setpoint Temperature')
-      var setPointError = {
-        "code" : "418",
-        "message" : 'Setpoint should be between '+ minTemp +' and ' + maxTemp
-      }
-      res.status(418).send(setPointError)
-    }
-  } else {
-    res.status(503).send(error503Object)
-}
-});
-app.put('/api/v1/spa/heater/mode/:mode', function(req, res){
-  // heatMode: 0: "Off", 1: "Solar", 2 : "Solar Preferred", 3 : "Heat Pump", 4: "Don't Change"
-  console.log(req.params)
-  if (poolSpaInfo.meta.successfulPolling){
-    var targetHeatMode = parseInt(req.params.mode);
-    if (targetHeatMode >= 0 && targetHeatMode <= 4){
-      setHeatMode(1, targetHeatMode)
-      var response = {
-        "spaHeaterMode" : targetHeatMode,
-        "HeaterModeMeaning" : heaterModes[targetHeatMode],
-        "success" : true
-      }
-      res.json(response)
-    } else {
-      var heatModeError = {
-        "code" : "418",
-        "message" : "Invalid Heat Mode",
-        "Valid Heat Modes" : heaterModes
-      }
-      res.status(418).send(heatModeError)
-    }
-  } else {
-    res.status(503).send(error503Object)
+  var response = {
+    "circuit" : changeCircuit,
+    "newState" : stateInt
   }
+  res.status(200).send(response)
+  console.log('Returned ' + req.method + ' ' + req.route.path);
 });
+var bodyTypeError = {
+  "code" : 418,
+  "message" : "Invalid target body",
+  "info" : "Valid target bodies are 'pool' or 'spa'"
+}
 
-app.put('/api/v1/pool/heater/setpoint/:temp', function(req, res){
+app.put(baseApiPath + '/:body/heater/setpoint/:temp', function(req, res){
   console.log(req.params)
   if (poolSpaInfo.meta.successfulPolling){
-    var targetTemp = parseInt(req.params.temp);
-    var maxTemp = parseInt(poolSpaInfo.controllerConfig.poolMaxSetPoint);
-    var minTemp = parseInt(poolSpaInfo.controllerConfig.poolMinSetPoint);
-    // console.log(targetTemp)
-    if (minTemp <= targetTemp && maxTemp >= targetTemp){
-      console.log('Valid Setpoint Temperature')
-      setHeatSetPoint(0, targetTemp);
-      var response = {
-        "poolSetpoint" : targetTemp,
-        "success" : true
+    if(req.params.body == 'spa' || req.params.body == 'pool') {
+      var targetBody = bodyMap[req.params.body]
+      var targetTemp = parseInt(req.params.temp);
+      var maxTemp = parseInt(poolSpaInfo.controllerConfig.spaMaxSetPoint);
+      var minTemp = parseInt(poolSpaInfo.controllerConfig.spaMinSetPoint);
+      // console.log(targetTemp)
+      if (minTemp <= targetTemp && maxTemp >= targetTemp){
+        console.log('Valid Setpoint Temperature')
+        setHeatSetPoint(targetBody, targetTemp);
+        var response = {
+          'body' : req.params.body,
+          "newSetpoint" : targetTemp,
+          "success" : true
+        }
+        res.json(response)
+        console.log('Returned ' + req.method + ' ' + req.route.path);
+      } else {
+        console.log('Invalid Setpoint Temperature')
+        var setPointError = {
+          "code" : "418",
+          "message" : 'Setpoint should be between '+ minTemp +' and ' + maxTemp
+        }
+        res.status(418).send(setPointError)
       }
-      res.json(response)
     } else {
-      console.log('Invalid Setpoint Temperature')
-      res.status(418).send('Error: Setpoint should be between '+ minTemp +' and ' + maxTemp + '.\n')
+      res.status(418).send(bodyTypeError)
     }
   } else {
     res.status(503).send(error503Object)
 }
 });
-app.put('/api/v1/pool/heater/mode/:mode', function(req, res){
+app.put(baseApiPath + '/:body/heater/mode/:mode', function(req, res){
   // heatMode: 0: "Off", 1: "Solar", 2 : "Solar Preferred", 3 : "Heat Pump", 4: "Don't Change"
   console.log(req.params)
   if (poolSpaInfo.meta.successfulPolling){
-    var targetHeatMode = parseInt(req.params.mode);
-    if (targetHeatMode >= 0 && targetHeatMode <= 4){
-      setHeatMode(0, targetHeatMode)
-      var response = {
-        "poolHeaterMode" : targetHeatMode,
-        "HeaterModeMeaning" : heaterModes[targetHeatMode],
-        "success" : true
+    if(req.params.body == 'spa' || req.params.body == 'pool') {
+      var targetBody = bodyMap[req.params.body]
+      var targetHeatMode = parseInt(req.params.mode);
+      if (targetHeatMode >= 0 && targetHeatMode <= 4){
+        setHeatMode(targetBody, targetHeatMode)
+        var response = {
+          "targetBody" : req.params.body,
+          "newHeaterMode" : targetHeatMode,
+          "newHeaterModeMeaning" : heaterModes[targetHeatMode],
+          "success" : true
+        }
+        res.json(response)
+        console.log('Returned ' + req.method + ' ' + req.route.path);
+      } else {
+        var heatModeError = {
+          "code" : "418",
+          "message" : "Invalid Heat Mode",
+          "Valid Heat Modes" : heaterModes
+        }
+        res.status(418).send(heatModeError)
       }
-      res.json(response)
     } else {
-      var heatModeError = {
-        "code" : "418",
-        "message" : "Invalid Heat Mode",
-        "Valid Heat Modes" : heaterModes
-      }
-      res.status(418).send(heatModeError)
+      res.status(418).send(bodyTypeError)
     }
   } else {
     res.status(503).send(error503Object)
@@ -513,4 +520,5 @@ app.get('/connection', function(req, res){
   findScreenLogic();
   var slConnection = getSlClient()
   res.json(slConnection)
+  console.log('Returned ' + req.method + ' ' + req.route.path);
 });
