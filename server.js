@@ -9,6 +9,13 @@ const ScreenLogic = require('node-screenlogic');
 // Override with POLL_INTERVAL environment variable.
 const pollInterval = process.env.POLL_INTERVAL || 5000;
 const baseApiPath = process.env.BASE_PATH || '/api';
+// Read other Configs from the Environment
+var slIpAddress = process.env.SL_IP_ADDRESS || null;
+var slPort = process.env.SL_PORT || 80;
+var slName = process.env.SL_NAME || null;
+// if (process.env.SL_IP_ADDRESS && process.env.SL_PORT){
+//   console.log('Got Screenlogic IP address and Port from the Environment.')
+// }
 
 const clientInt = 0;
 
@@ -61,22 +68,13 @@ const heaterStatus = {
   "2" : "Heat Pump On"
 }
 
-// Read Configs from the Environment
-var slIpAddress = null;
-var slPort = null;
-var slName = null;
-if (process.env.SL_IP_ADDRESS && process.env.SL_PORT){
-  slIpAddress = process.env.SL_IP_ADDRESS;
-  slPort = process.env.SL_PORT;
-}
-if (process.env.SL_NAME){
-  slName = process.env.SL_NAME;
-}
+
 
 function findScreenLogic(){
   if (slIpAddress && slPort){
     // console.log(server)
     // console.log(connection);
+    console.log('Got Screenlogic IP address and Port from the Environment.')
     poolSpaInfo.meta.server = {
       "ipAddress" : slIpAddress,
       "port" : slPort,
