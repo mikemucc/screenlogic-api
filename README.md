@@ -63,5 +63,3 @@ The `/api/all` endpoint will return an object that lists all of the circuit defi
 | 2 | Solar Preferred |
 | 3 | Heat Pump |
 | 4 | No Change |
-
-
