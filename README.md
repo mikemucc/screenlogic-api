@@ -25,36 +25,36 @@ You can modify the behavoir of the server with the following environment variabl
 
 ### GET methods
 
-`/api/all` : Return all data about the screenlogic device (that I can currently get via Parnic's library).
-
-`/api/raw` : Return the raw data from the library, bypassing any data massaging or interpreting that the api is doing.
+| Endpoint | Function |
+|----------|----------|
+|`/api/all` | Return all data about the screenlogic device (that I can currently get via Parnic's library)|
+| `/api/raw` | Return the raw data from the library, bypassing any data massaging or interpreting that the api is doing |
 
 ### PUT methods
 
 #### Circuit activate/deactivate
 
-`/api/:circuit/:state` : Turn any circuit on or off. `circuit` should be an integer between 500 and 600, `state` should be 1 (on) or 0 (off).
-
-The `/api/all` endpoint will return an object that lists all of the circuit definitions for your system under `controllerconfig.circuits[]`.
+| Endpoint | Function | Notes |
+|----------|----------|-------|
+|`/api/:circuit/:state` | Turn any circuit on or off. `circuit` should be an integer between 500 and 600, `state` should be 1 (on) or 0 (off)| The `/api/all` endpoint will return an object that lists all of the circuit definitions for your system under `controllerconfig.circuits[]`.|
 
 ##### Convenience Methods
 
-`/api/pool/on` : Set the screenlogic device to pool mode and turn it on. This is the functional equilivent of sending `PUT /api/505/1`.
-
-`/api/pool/off` : Set the screenlogic device to pool mode and turn it on. This is the functional equilivent of sending `PUT /api/505/0`.
-
-`/api/spa/on` : Set the screenlogic device to spa mode and turn it on. This is the functional equilivent of sending `PUT /api/500/1`.
-
-`/api/spa/off` : Set the screenlogic device to spa mode and turn it on. This is the functional equilivent of sending `PUT /api/500/0`.
+| Endpoint | Function | Notes |
+|----------|----------|-------|
+|`/api/pool/on` | Set the screenlogic device to pool mode and turn it on | This is the functional equilivent of sending `PUT /api/505/1` |
+|`/api/pool/off` | Set the screenlogic device to pool mode and turn it on| This is the functional equilivent of sending `PUT /api/505/0` |
+|`/api/spa/on` | Set the screenlogic device to spa mode and turn it on | This is the functional equilivent of sending `PUT /api/500/1` |
+| `/api/spa/off` | Set the screenlogic device to spa mode and turn it on | This is the functional equilivent of sending `PUT /api/500/0`|
 
 #### Heater Control
 
-`/api/:body/heater/setpoint/:temp` : Set the heater setpoint (i.e. temperature) for the given `body`. `body` should be either `pool` or `spa`; `temp` should be the temperature you want to set the setpoint to. That temperature should be in whatever scale your pool is set to (i.e. Celcius or Farenheit).
-
-`/api/:body/heater/mode/:mode` : Set the heater operation mode for the given body. `body` should be either `pool` or `spa`;
+| Endpoint | Function | Notes |
+|----------|----------|-------|
+|`/api/:body/heater/setpoint/:temp` | Set the heater setpoint (i.e. temperature) for the given `body`. `body` should be either `pool` or `spa`; `temp` should be the temperature you want to set the setpoint to. | The temperature should be in whatever scale your pool is set to (i.e. Celcius or Farenheit). |
+|`/api/:body/heater/mode/:mode` | Set the heater operation mode for the given body. |`body` should be either `pool` or `spa`; `mode` is an integer from 0 - 4 |
 
 `mode` is an integer from 0 - 4 with the following meanings:
-
 | Mode Integer | Meaning |
 |--------------|---------|
 | 0 | Off|
