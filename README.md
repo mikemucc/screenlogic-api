@@ -55,6 +55,7 @@ You can modify the behavoir of the server with the following environment variabl
 |`/api/:body/heater/mode/:mode` | Set the heater operation mode for the given body. |`body` should be either `pool` or `spa`; `mode` is an integer from 0 - 4 |
 
 `mode` is an integer from 0 - 4 with the following meanings:
+
 | Mode Integer | Meaning |
 |--------------|---------|
 | 0 | Off|
