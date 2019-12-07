@@ -25,10 +25,10 @@ You can modify the behavoir of the server with the following environment variabl
 
 ### GET methods
 
-| Endpoint | Function |
-|----------|----------|
-|`/api/all` | Return all data about the screenlogic device (that I can currently get via Parnic's library)|
-| `/api/raw` | Return the raw data from the library, bypassing any data massaging or interpreting that the api is doing |
+| Endpoint | Function | Notes |
+|----------|----------|-------|
+|`/api/all` | Return all data about the screenlogic device (that I can currently get via Parnic's library)| This is suitable for use by a Front End UI|
+| `/api/raw` | Return the raw data from the library, bypassing any data massaging or interpreting that the api is doing | This is suitable for debugging purposes|
 
 ### PUT methods
 
