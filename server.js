@@ -13,6 +13,7 @@ const baseApiPath = process.env.BASE_PATH || '/api';
 var slIpAddress = process.env.SL_IP_ADDRESS || null;
 var slPort = process.env.SL_PORT || 80;
 var slName = process.env.SL_NAME || null;
+var featuresInterface = process.env.FEATURES_LOCATION || 'features';
 // if (process.env.SL_IP_ADDRESS && process.env.SL_PORT){
 //   console.log('Got Screenlogic IP address and Port from the Environment.')
 // }
@@ -78,7 +79,7 @@ function findScreenLogic(){
     poolSpaInfo.meta.server = {
       "ipAddress" : slIpAddress,
       "port" : slPort,
-      "name" : slIpAddress,
+      "name" : slName,
     }
     if (slName){
       poolSpaInfo.meta.server.name = slName;
@@ -106,17 +107,6 @@ function getSlClient(){
   return new ScreenLogic.UnitConnection(slPort, slIpAddress)
 }
 
-// function resolveBodyInt(bodyInt){
-//   var bodyText = new String
-//   if (bodyInt == 0){
-//     bodyText = 'pool'
-//   } else if (bodyInt == 1){
-//     bodyText = 'spa'
-//   } else {
-//     throw "Out of Range Exception: body value must be 0 (pool) or 1 (spa)."
-//   }
-//   return(bodyText)
-// }
 
 function setHeatMode(body, heatMode){
   // Body: pool = 0; spa = 1
@@ -177,6 +167,10 @@ function getAllpoolSpaInfo(){
   var client = getSlClient();
   client.on('loggedIn', function() {
       // console.log('Getting all info...')
+      // console.log(client.challengeString.substr(9))
+      if(!poolSpaInfo.meta.server.name){
+        poolSpaInfo.meta.server.name = 'Pentair: ' + client.challengeString.substr(9)
+      }
       this.getVersion();
     }).on('version', function(version) {
       this.getPoolStatus();
@@ -193,7 +187,12 @@ function getAllpoolSpaInfo(){
       poolSpaInfo.meta.freezeMode = status.freezeMode;
 
       poolSpaInfo.status = {
-          'pool' : {          
+        'bodies': [
+          { 
+            'name' : 'pool',
+            'circuitId' : commonCircuitMap.pool,
+            'interfaceId' : 0,
+            'altInterfaceId' : (featuresInterface.toLowerCase() == 'pool') ? 2 : 0,
             'waterTemp' : status.currentTemp[0],
             'active' : status.isPoolActive(),
             'airTemp' : status.airTemp,
@@ -206,7 +205,11 @@ function getAllpoolSpaInfo(){
               'setpoint' : status.setPoint[0],
             }
           },
-          'spa' : {
+          { 
+            'name' : 'spa',
+            'circuitId' : commonCircuitMap.spa,
+            'interfaceId' : 1,
+            'altInterfaceId' : (featuresInterface.toLowerCase() == 'spa') ? 2 : 1,
             'waterTemp' : status.currentTemp[1],
             'active' : status.isSpaActive(),
             'airTemp' : status.airTemp,
@@ -217,8 +220,9 @@ function getAllpoolSpaInfo(){
               'activeCode' : status.heatStatus[1],
               'activeType': heaterStatus[status.heatStatus[1]],
               'setpoint' : status.setPoint[1],
-            }
-          },
+            },
+          }
+          ],
           'device' : {
             'currentStatus' : status.ok,
             'ready' : status.isDeviceReady(),
@@ -258,8 +262,9 @@ function getAllpoolSpaInfo(){
       poolSpaInfo.meta.tempInCelcius = config.degC;
       poolSpaInfo.controllerConfig = {
         'tempInCelcius' : config.degC,
+        'tempScale' : (config.degC) ? 'C' : 'F',
         'pumps' : config.pumpCircArray,
-        'circuits' : config.bodyArray,
+        'bodyArray' : config.bodyArray,
         'controllerId' : config.controllerId,
         'poolMinSetPoint' : config.minSetPoint[0],
         'poolMaxSetPoint' : config.maxSetPoint[0],
@@ -267,8 +272,23 @@ function getAllpoolSpaInfo(){
         'spaMaxSetPoint' : config.maxSetPoint[1],
         'interfaceTabFlags' : config.interfaceTabFlags
       };
+      poolSpaInfo.status.bodies.forEach(v => {v.tempScale= (config.degC) ? 'C' : 'F';});
+      poolSpaInfo.meta.tempScale = (config.degC) ? 'C' : 'F'
       rawObjects.config = config
-      
+      poolSpaInfo.controllerConfig.bodyArray.forEach(
+        c => {
+          poolSpaInfo.status.circuits.forEach(
+            z => {
+              if(c.circuitId == z.id){
+                // console.log(c.circuitId)
+                c.state = z.state
+                c.delay = z.delay
+              }
+            }
+          )
+        }
+      )
+
       poolSpaInfo.meta.lastUpdated = Date.now();
       rawObjects.meta.lastUpdated = Date.now();
       if (!poolSpaInfo.meta.successfulPolling){
@@ -330,6 +350,12 @@ var server = app.listen(expressPort, function(){
   //   sleep(5000)
   // };
   console.log("Express server listening on port " + expressPort)
+});
+
+app.use(function(req, res, next) {
+  res.header("Access-Control-Allow-Origin", "*"); // update to match the domain you will make the request from
+  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+  next();
 });
 
 app.get('/health', function(req, res){
