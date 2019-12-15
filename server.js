@@ -5,6 +5,8 @@ var express = require('express');
 var app = express();
 var expressPort = process.env.PORT || 3000;
 const ScreenLogic = require('node-screenlogic');
+var cors = require('cors')
+app.use(cors())
 //defaulting to 5 second poll intervals. 
 // Override with POLL_INTERVAL environment variable.
 const pollInterval = process.env.POLL_INTERVAL || 5000;
@@ -48,6 +50,129 @@ const poolSpaInfo = {
       }
     }
 };
+
+const equipFlagsMeanings = {
+  "24": {
+    "heater": true,
+    "solar": false,
+    "solarisheater": false,
+    "chlorinator": false,
+    "cooler": false,
+    "intellichem": false
+  },
+  "25": {
+    "heater": true,
+    "solar": true,
+    "solarisheater": false,
+    "chlorinator": false,
+    "cooler": false,
+    "intellichem": false
+  },
+  "27": {
+    "heater": true,
+    "solar": true,
+    "solarisheater": true,
+    "chlorinator": false,
+    "cooler": false,
+    "intellichem": false
+  },
+  "28": {
+    "heater": true,
+    "solar": false,
+    "solarisheater": false,
+    "chlorinator": true,
+    "cooler": false,
+    "intellichem": false
+  },
+  "29": {
+    "heater": true,
+    "solar": true,
+    "solarisheater": false,
+    "chlorinator": true,
+    "cooler": false,
+    "intellichem": false
+  },
+  "31": {
+    "heater": true,
+    "solar": true,
+    "solarisheater": true,
+    "chlorinator": true,
+    "cooler": false,
+    "intellichem": false
+  },
+  "8219": {
+    "heater": true,
+    "solar": true,
+    "solarisheater": true,
+    "chlorinator": false,
+    "cooler": true,
+    "intellichem": false
+  },
+  "8223": {
+    "heater": true,
+    "solar": true,
+    "solarisheater": true,
+    "chlorinator": true,
+    "cooler": true,
+    "intellichem": false
+  },
+  "32792": {
+    "heater": true,
+    "solar": false,
+    "solarisheater": false,
+    "chlorinator": false,
+    "cooler": false,
+    "intellichem": true
+  },
+  "32793": {
+    "heater": true,
+    "solar": true,
+    "solarisheater": false,
+    "chlorinator": false,
+    "cooler": false,
+    "intellichem": true
+  },
+  "32795": {
+    "heater": true,
+    "solar": true,
+    "solarisheater": true,
+    "chlorinator": false,
+    "cooler": false,
+    "intellichem": true
+  },
+  "32796": {
+    "heater": true,
+    "solar": false,
+    "solarisheater": false,
+    "chlorinator": true,
+    "cooler": false,
+    "intellichem": true
+  },
+  "32797": {
+    "heater": true,
+    "solar": true,
+    "solarisheater": false,
+    "chlorinator": true,
+    "cooler": false,
+    "intellichem": true
+  },
+  "32799":{
+    "heater": true,
+    "solar": true,
+    "solarisheater": true,
+    "chlorinator": true,
+    "cooler": false,
+    "intellichem": true
+  },
+  "40991": {
+    "heater": true,
+    "solar": true,
+    "solarisheater": true,
+    "chlorinator": true,
+    "cooler": true,
+    "intellichem": true
+  }
+}
 
 const rawObjects = {
   'meta' : 
@@ -129,7 +254,7 @@ function setHeatMode(body, heatMode){
 
 function setHeatSetPoint(body, temp){
   var client = getSlClient();
-  console.log(client);
+  // console.log(client);
   var heatBody = bodyMap[body];
   console.log('Setting heater setpoint for ' + heatBody + ' to ' + temp + ' degrees.');
   client.on('loggedIn', function(){
@@ -202,9 +327,11 @@ function getAllpoolSpaInfo(){
               'active' : (status.heatStatus[0] > 0),
               'activeCode' : status.heatStatus[0],
               'activeType' : heaterStatus[status.heatStatus[0]],
-              'setpoint' : status.setPoint[0],
+              'setpoint' : {
+                'current': status.setPoint[0]
             }
           },
+        },
           { 
             'name' : 'spa',
             'circuitId' : commonCircuitMap.spa,
@@ -219,7 +346,9 @@ function getAllpoolSpaInfo(){
               'active' : (status.heatStatus[1] > 0),
               'activeCode' : status.heatStatus[1],
               'activeType': heaterStatus[status.heatStatus[1]],
-              'setpoint' : status.setPoint[1],
+              'setpoint' : {
+                'current': status.setPoint[1]
+              }
             },
           }
           ],
@@ -270,9 +399,15 @@ function getAllpoolSpaInfo(){
         'poolMaxSetPoint' : config.maxSetPoint[0],
         'spaMinSetPoint' : config.minSetPoint[1],
         'spaMaxSetPoint' : config.maxSetPoint[1],
-        'interfaceTabFlags' : config.interfaceTabFlags
+        'interfaceTabFlags' : config.interfaceTabFlags,
+        'equipFlags' : config.equipFlags,
+        'equipPresent' : equipFlagsMeanings[config.equipFlags],
       };
-      poolSpaInfo.status.bodies.forEach(v => {v.tempScale= (config.degC) ? 'C' : 'F';});
+      poolSpaInfo.status.bodies.forEach(function(v, i) {
+        v.tempScale= (config.degC) ? 'C' : 'F';
+        v.heater.setpoint.min = config.minSetPoint[i]
+        v.heater.setpoint.max = config.maxSetPoint[i]
+      });
       poolSpaInfo.meta.tempScale = (config.degC) ? 'C' : 'F'
       rawObjects.config = config
       poolSpaInfo.controllerConfig.bodyArray.forEach(
@@ -283,6 +418,11 @@ function getAllpoolSpaInfo(){
                 // console.log(c.circuitId)
                 c.state = z.state
                 c.delay = z.delay
+                if (z.state == 0) {
+                  c.active = false;
+                } else if (z.state == 1){
+                  c.active = true;
+                }
               }
             }
           )
@@ -352,11 +492,11 @@ var server = app.listen(expressPort, function(){
   console.log("Express server listening on port " + expressPort)
 });
 
-app.use(function(req, res, next) {
-  res.header("Access-Control-Allow-Origin", "*"); // update to match the domain you will make the request from
-  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
-  next();
-});
+// app.use(function(req, res, next) {
+//   res.header("Access-Control-Allow-Origin", "*"); // update to match the domain you will make the request from
+//   res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+//   next();
+// });
 
 app.get('/health', function(req, res){
     var response = {
