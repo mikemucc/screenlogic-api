@@ -322,6 +322,7 @@ function getAllpoolSpaInfo(){
             'active' : status.isPoolActive(),
             'airTemp' : status.airTemp,
             'heater' : {
+              'equipment': [],
               'modeCode' : status.heatMode[0],
               'mode' : heaterModes[status.heatMode[0]],
               'active' : (status.heatStatus[0] > 0),
@@ -341,6 +342,7 @@ function getAllpoolSpaInfo(){
             'active' : status.isSpaActive(),
             'airTemp' : status.airTemp,
             'heater' : {
+              'equipment': [],
               'modeCode' : status.heatMode[1],
               'mode' : heaterModes[status.heatMode[1]],
               'active' : (status.heatStatus[1] > 0),
@@ -404,6 +406,12 @@ function getAllpoolSpaInfo(){
         'equipPresent' : equipFlagsMeanings[config.equipFlags],
       };
       poolSpaInfo.status.bodies.forEach(function(v, i) {
+        if (poolSpaInfo.controllerConfig.equipPresent.heater){
+          v.heater.equipment.push('heater')
+        }
+        if (poolSpaInfo.controllerConfig.equipPresent.solar){
+          v.heater.equipment.push('solar')
+        }
         v.tempScale= (config.degC) ? 'C' : 'F';
         v.heater.setpoint.min = config.minSetPoint[i]
         v.heater.setpoint.max = config.maxSetPoint[i]

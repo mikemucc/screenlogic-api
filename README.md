@@ -18,6 +18,7 @@ You can modify the behavoir of the server with the following environment variabl
 * `SL_IP_ADDRESS` : IP Address of your screenlogic device.  
 * `SL_PORT` : Port your Screenlogic device is listening on.  
 * `SL_NAME` : (Optional) Name of your ScreenLogic unit.  
+* `FEATURES_LOCATION` : (Optional) Section you would like to see anything you've defined as showing up in the "Features" section in the ScreenLogic app. Valid options are `spa` and `pool`.
 
 **Important**: if you specify `SL_IP_ADDRESS` and `SL_PORT`, the server will not broadcast for a screenlogic device on the network, it will attempt to connect to your screenlogic at the IP Address and port specified. This is especially useful in a situation where the broadcast address on the network that the screenlogic unit is attached to is unreachable, such as if running this in a docker container.
 
