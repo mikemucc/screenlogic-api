@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 'use strict';
 
+const { equipFlagsMeanings } = require("./equipFlagsMeanings");
+
 var express = require('express');
 var app = express();
 var expressPort = process.env.PORT || 3000;
@@ -51,129 +53,6 @@ const poolSpaInfo = {
     }
 };
 
-const equipFlagsMeanings = {
-  "24": {
-    "heater": true,
-    "solar": false,
-    "solarisheater": false,
-    "chlorinator": false,
-    "cooler": false,
-    "intellichem": false
-  },
-  "25": {
-    "heater": true,
-    "solar": true,
-    "solarisheater": false,
-    "chlorinator": false,
-    "cooler": false,
-    "intellichem": false
-  },
-  "27": {
-    "heater": true,
-    "solar": true,
-    "solarisheater": true,
-    "chlorinator": false,
-    "cooler": false,
-    "intellichem": false
-  },
-  "28": {
-    "heater": true,
-    "solar": false,
-    "solarisheater": false,
-    "chlorinator": true,
-    "cooler": false,
-    "intellichem": false
-  },
-  "29": {
-    "heater": true,
-    "solar": true,
-    "solarisheater": false,
-    "chlorinator": true,
-    "cooler": false,
-    "intellichem": false
-  },
-  "31": {
-    "heater": true,
-    "solar": true,
-    "solarisheater": true,
-    "chlorinator": true,
-    "cooler": false,
-    "intellichem": false
-  },
-  "8219": {
-    "heater": true,
-    "solar": true,
-    "solarisheater": true,
-    "chlorinator": false,
-    "cooler": true,
-    "intellichem": false
-  },
-  "8223": {
-    "heater": true,
-    "solar": true,
-    "solarisheater": true,
-    "chlorinator": true,
-    "cooler": true,
-    "intellichem": false
-  },
-  "32792": {
-    "heater": true,
-    "solar": false,
-    "solarisheater": false,
-    "chlorinator": false,
-    "cooler": false,
-    "intellichem": true
-  },
-  "32793": {
-    "heater": true,
-    "solar": true,
-    "solarisheater": false,
-    "chlorinator": false,
-    "cooler": false,
-    "intellichem": true
-  },
-  "32795": {
-    "heater": true,
-    "solar": true,
-    "solarisheater": true,
-    "chlorinator": false,
-    "cooler": false,
-    "intellichem": true
-  },
-  "32796": {
-    "heater": true,
-    "solar": false,
-    "solarisheater": false,
-    "chlorinator": true,
-    "cooler": false,
-    "intellichem": true
-  },
-  "32797": {
-    "heater": true,
-    "solar": true,
-    "solarisheater": false,
-    "chlorinator": true,
-    "cooler": false,
-    "intellichem": true
-  },
-  "32799":{
-    "heater": true,
-    "solar": true,
-    "solarisheater": true,
-    "chlorinator": true,
-    "cooler": false,
-    "intellichem": true
-  },
-  "40991": {
-    "heater": true,
-    "solar": true,
-    "solarisheater": true,
-    "chlorinator": true,
-    "cooler": true,
-    "intellichem": true
-  }
-}
-
 const rawObjects = {
   'meta' : 
   {
@@ -215,6 +94,9 @@ function findScreenLogic(){
     finder.on('serverFound', function(server) 
         {
           console.log('Found ScreenLogic unit at: ' + server.address + ':' + server.port);
+          slIpAddress = server.address;
+          slPort = server.port;
+          slName = server.gatewayName;
           poolSpaInfo.meta.server = {
             "ipAddress" : server.address,
             "port" : server.port,
@@ -227,8 +109,6 @@ function findScreenLogic(){
 }
 
 function getSlClient(){
-  var slIpAddress = poolSpaInfo.meta.server.ipAddress
-  var slPort = poolSpaInfo.meta.server.port
   return new ScreenLogic.UnitConnection(slPort, slIpAddress)
 }
 
@@ -247,14 +127,14 @@ function setHeatMode(body, heatMode){
   }).on('loginFailed', function() {
     console.log('Unable to login... refreshing client.');
     client.close();
-    findScreenLogic();
+    // findScreenLogic();
   });
   client.connect();
 }
 
 function setHeatSetPoint(body, temp){
   var client = getSlClient();
-  // console.log(client);
+  // console.log(body);
   var heatBody = bodyMap[body];
   console.log('Setting heater setpoint for ' + heatBody + ' to ' + temp + ' degrees.');
   client.on('loggedIn', function(){
@@ -262,10 +142,12 @@ function setHeatSetPoint(body, temp){
       this.setSetPoint(clientInt, body, temp);
     }).on('setPointChanged', function(){
       console.log(heatBody + ' setpoint Successfully changed to ' + temp)
+      client.close();
+      getAllpoolSpaInfo();
     }).on('loginFailed', function() {
-      console.log('Unable to login... refreshing client.');
+      console.log('Unable to login...');
     client.close();
-    findScreenLogic();
+    // findScreenLogic();
   });
   client.connect();
 }
@@ -280,6 +162,7 @@ function setNewCircuitState(circuitId, state){
       var newState = (state == 0 ) ? 'off' : 'on';
       console.log(`Circuit ${circuitId} set to ${newState}.`);
       client.close();
+      getAllpoolSpaInfo();
     }).on('loginFailed', function() {
       console.log('Unable to login...refreshing client.');
     client.close();
@@ -310,6 +193,7 @@ function getAllpoolSpaInfo(){
       poolSpaInfo.meta.activeAlarms = status.alarms;
       poolSpaInfo.meta.serviceMode = status.isDeviceServiceMode();
       poolSpaInfo.meta.freezeMode = status.freezeMode;
+      poolSpaInfo.meta.cleanerDelay = status.cleanerDelay;
 
       poolSpaInfo.status = {
         'bodies': [
@@ -405,6 +289,7 @@ function getAllpoolSpaInfo(){
         'equipFlags' : config.equipFlags,
         'equipPresent' : equipFlagsMeanings[config.equipFlags],
       };
+      poolSpaInfo.chemistry.intellichemInstalled = poolSpaInfo.controllerConfig.equipPresent.intellichem
       poolSpaInfo.status.bodies.forEach(function(v, i) {
           v.heater.equipPresent.heater = poolSpaInfo.controllerConfig.equipPresent.heater
           v.heater.equipPresent.solar = poolSpaInfo.controllerConfig.equipPresent.solar
@@ -432,6 +317,11 @@ function getAllpoolSpaInfo(){
               }
             }
           )
+          if (c.name == "Lights"){
+            // console.log(c.name)
+            // console.log(Object.keys(c))
+            poolSpaInfo.meta.lightsOn = c.active;
+          }
         }
       )
 
@@ -470,7 +360,25 @@ function setSpaModeOff() {
   setNewCircuitState(500, 0)
 };
 
+function lightFunction(message){
+  var client = getSlClient();
+  client.on('loggedIn', function(){
+    console.log('Logged in')
+    this.sendLightCommand(clientInt, message);
+  }).on('sentLightCommand', function() {
+    console.log("Light Command sent")
+  }).on('sentLightCommand', function(){
+    console.log('Light Command Acknowledged')
+    client.close();
+    getAllpoolSpaInfo();
+  }).on('loginFailed', function() {
+    console.log('Unable to login... refreshing client.');
+    client.close();
+    // findScreenLogic();
+  });
+  client.connect();
 
+}
 
 // Express.js endpoint logic below this line
 // --------------------------------
@@ -497,12 +405,6 @@ var server = app.listen(expressPort, function(){
   // };
   console.log("Express server listening on port " + expressPort)
 });
-
-// app.use(function(req, res, next) {
-//   res.header("Access-Control-Allow-Origin", "*"); // update to match the domain you will make the request from
-//   res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
-//   next();
-// });
 
 app.get('/health', function(req, res){
     var response = {
@@ -582,14 +484,21 @@ app.put(baseApiPath + '/spa/off', function(req,res){
   res.json(response)
   console.log('Returned ' + req.method + ' ' + req.route.path);
 });
+app.put(baseApiPath + '/lights/:command', function(req,res){
+  lightFunction(req.params.command)
+  var response = {
+    "lightCommand" : req.params.command
+  }
+  res.status(200).send(response)
+})
 
-app.put(baseApiPath + '/:circuit/:state', function(req,res){
+app.put(baseApiPath + '/circuit/:circuit/:state', function(req,res){
   console.log(req.ip);
   console.log(req.params);
   var changeCircuit = parseInt(req.params.circuit);
   var stateInt = null;
   if (!req.params.circuit || !req.params.state){
-    res.status(406).send('{"Error" : "The format of this request is /api/v1/circuit/state. Circuit should be the number of the circuit, an integer between 500 and 600. State should be 0 (off) or 1 (on)."}');
+    res.status(406).send('{"Error" : "The format of this request is /api/v1/circuit/<circuitNumber>/<state>. Circuit should be the number of the circuit, an integer between 500 and 600. State should be 0 (off) or 1 (on)."}');
     return;
   }
   if (req.params.state.toUpperCase() == 'ON' || req.params.state == "1"){
@@ -692,3 +601,5 @@ app.get('/connection', function(req, res){
   res.json(slConnection)
   console.log('Returned ' + req.method + ' ' + req.route.path);
 });
+
+
