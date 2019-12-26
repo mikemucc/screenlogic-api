@@ -1,7 +1,7 @@
 FROM node:lts-alpine
 
 COPY package*.json /usr/src/app/
-COPY server.js /usr/src/app/
+COPY *.js /usr/src/app/
 
 WORKDIR /usr/src/app
 RUN npm install

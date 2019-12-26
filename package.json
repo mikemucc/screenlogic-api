@@ -1,8 +1,9 @@
 {
   "name": "screenlogic-api",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "REST API to control Pentair Screenlogic",
+  "repository": "https://github.com/mikemucc/screenlogic-api.git",
+  "main": "server.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node server.js",
