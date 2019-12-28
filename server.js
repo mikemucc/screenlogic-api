@@ -124,6 +124,7 @@ function setHeatMode(body, heatMode){
   }).on('heatModeChanged', function() {
     console.log("Changed " + heatBody + " heater state to " + heaterModes[heatMode])
     client.close();
+    getAllpoolSpaInfo();
   }).on('loginFailed', function() {
     console.log('Unable to login... refreshing client.');
     client.close();
