@@ -468,7 +468,7 @@ app.put(baseApiPath + '/spa/on', function(req,res){
     'action' : 'on',
     'sent' : true
   }
-  console.log('Sent poolOn to ScreenLogic')
+  console.log('Sent spaOn to ScreenLogic')
   res.json(response)
   console.log('Returned ' + req.method + ' ' + req.route.path);
 })
@@ -481,7 +481,7 @@ app.put(baseApiPath + '/spa/off', function(req,res){
     'action' : 'off',
     'sent' : true
   }
-  console.log('Sent poolOff to ScreenLogic')
+  console.log('Sent spaOff to ScreenLogic')
   res.json(response)
   console.log('Returned ' + req.method + ' ' + req.route.path);
 });
