@@ -417,7 +417,7 @@ app.get('/health', function(req, res){
 
 
 app.get(baseApiPath + '/all', function(req, res){
-  console.log(req.ip);
+  // console.log(req.ip);
   // console.log('All Pool Info: ' + poolSpaInfo);
   if(poolSpaInfo.meta.successfulPolling){
     res.json(poolSpaInfo);
@@ -486,6 +486,7 @@ app.put(baseApiPath + '/spa/off', function(req,res){
   console.log('Returned ' + req.method + ' ' + req.route.path);
 });
 app.put(baseApiPath + '/lights/:command', function(req,res){
+  // console.log(req.params.command)
   lightFunction(req.params.command)
   var response = {
     "lightCommand" : req.params.command

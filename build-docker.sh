@@ -1,6 +1,7 @@
 #!/bin/bash
+IMAGENAME='screenlogic-api'
 SHORTGITHASH=$(git rev-parse --short HEAD)
-docker build -t michaelmucciarone/screenlogic-api:latest .
-docker tag michaelmucciarone/screenlogic-api:latest michaelmucciarone/screenlogic-api:$SHORTGITHASH
-docker push michaelmucciarone/screenlogic-api:latest
-docker push michaelmucciarone/screenlogic-api:$SHORTGITHASH
+docker build -t michaelmucciarone/$IMAGENAME:latest .
+docker tag michaelmucciarone/$IMAGENAME:latest michaelmucciarone/$IMAGENAME:$SHORTGITHASH
+docker push michaelmucciarone/$IMAGENAME:latest
+docker push michaelmucciarone/$IMAGENAME:$SHORTGITHASH
