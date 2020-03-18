@@ -4,7 +4,7 @@ An API built on top of Parnic's [node-screenlogic](https://github.com/parnic/nod
 
 Still a work in progress.
 
-**Pull Requests Welcome!***
+**Pull Requests Welcome!**
 
 ## Setup and usage
 
