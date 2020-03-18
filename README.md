@@ -4,6 +4,8 @@ An API built on top of Parnic's [node-screenlogic](https://github.com/parnic/nod
 
 Still a work in progress.
 
+**Pull Requests Welcome!***
+
 ## Setup and usage
 
 To set up, clone this repo then run `npm install`.
