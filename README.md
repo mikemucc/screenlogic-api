@@ -6,6 +6,8 @@ Still a work in progress.
 
 **Pull Requests Welcome!**
 
+If you find this API useful and fix bugs or add functionality, please PR it back!
+
 ## Setup and usage
 
 To set up, clone this repo then run `npm install`.
