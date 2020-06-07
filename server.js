@@ -103,8 +103,8 @@ function findScreenLogic() {
   }
 }
 
-function getSlClient() {
-  return new ScreenLogic.UnitConnection(slPort, slIpAddress);
+function getSlClient(port=slPort, ipAddress=slIpAddress) {
+  return new ScreenLogic.UnitConnection(port, ipAddress);
 }
 
 function setHeatMode(body, heatMode) {
@@ -193,6 +193,7 @@ function setNewCircuitState(circuitId, state) {
 
 function getAllpoolSpaInfo() {
   const client = getSlClient();
+  const pollTime = Date.now();
   client
     .on("loggedIn", function () {
       // console.log('Getting all info...')
@@ -202,9 +203,13 @@ function getAllpoolSpaInfo() {
           "Pentair: " + client.challengeString.substr(9);
       }
       this.getVersion();
+      this.getPoolStatus();
+      this.getChemicalData();
+      this.getSaltCellConfig();
+      this.getControllerConfig();
+      this.getScheduleData();
     })
     .on("version", function (version) {
-      this.getPoolStatus();
       // console.log(version)
       poolSpaInfo.firmware = {
         version: version.version,
@@ -212,13 +217,11 @@ function getAllpoolSpaInfo() {
       // console.log(' version=' + version.version);
     })
     .on("poolStatus", function (status) {
-      this.getChemicalData();
       poolSpaInfo.meta.airTemp = status.airTemp;
       poolSpaInfo.meta.activeAlarms = status.alarms;
       poolSpaInfo.meta.serviceMode = status.isDeviceServiceMode();
       poolSpaInfo.meta.freezeMode = status.freezeMode;
       poolSpaInfo.meta.cleanerDelay = status.cleanerDelay;
-
       let spaActive = false;
       try {
         spaActive = status.isSpaActive();
@@ -286,7 +289,6 @@ function getAllpoolSpaInfo() {
       rawObjects.status = status;
     })
     .on("chemicalData", function (chemData) {
-      this.getSaltCellConfig();
       poolSpaInfo.chemistry = {
         info: "This data only valid if IntelliChem in installed",
         isValid: chemData.isValid,
@@ -298,7 +300,6 @@ function getAllpoolSpaInfo() {
       rawObjects.chemData = chemData;
     })
     .on("saltCellConfig", function (saltCellConfig) {
-      this.getControllerConfig();
       poolSpaInfo.saltCell = {
         installed: saltCellConfig.installed,
         status: saltCellConfig.status,
@@ -359,8 +360,8 @@ function getAllpoolSpaInfo() {
         }
       });
 
-      poolSpaInfo.meta.lastUpdated = Date.now();
-      rawObjects.meta.lastUpdated = Date.now();
+      poolSpaInfo.meta.lastUpdated = pollTime;
+      rawObjects.meta.lastUpdated = pollTime;
       if (!poolSpaInfo.meta.successfulPolling) {
         console.log("Initial State Data loaded from ScreenLogic.");
         // console.log('\n')
@@ -371,12 +372,10 @@ function getAllpoolSpaInfo() {
       // console.log('Info Refreshed')
       client.close();
     })
-    .on("loggedIn", function () {
-      this.getScheduleData();
-    })
     .on("getScheduleData", function (schedules) {
       // console.log("Getting schedule info...");
       poolSpaInfo.schedules = schedules;
+      poolSpaInfo.schedules.lastUpdated = pollTime;
     })
     .on("loginFailed", function () {
       console.log("Unable to login...refreshing client.");
@@ -386,6 +385,7 @@ function getAllpoolSpaInfo() {
   client.connect();
   // getAllSchedules(client);
 }
+exports.poolSpaInfo = poolSpaInfo;
 
 function setPoolModeOn() {
   setNewCircuitState(505, 1);
@@ -426,7 +426,9 @@ function lightFunction(message) {
   client.connect();
 }
 
+
 // Schedule support
+// At some point in the future, when I get good at node.js, I'll refactor...
 // function getAllSchedules() {
 
 //   const client = getSlClient();
