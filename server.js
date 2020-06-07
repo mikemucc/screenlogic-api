@@ -26,7 +26,7 @@ const commonCircuitMap = {
   pool: 505,
   "505": "pool",
   spa: 500,
-  "500": "spa"
+  "500": "spa",
 };
 
 //quick way to convert body integer to name.
@@ -34,7 +34,7 @@ const bodyMap = {
   "0": "pool",
   pool: 0,
   "1": "spa",
-  spa: 1
+  spa: 1,
 };
 
 const poolSpaInfo = {
@@ -45,27 +45,29 @@ const poolSpaInfo = {
     server: {
       ipAddress: null,
       port: null,
-      name: null
-    }
-  }
+      name: null,
+    },
+  },
 };
+
+const scheduleInfo = {};
 
 const rawObjects = {
   meta: {
-    lastUpdated: null
-  }
+    lastUpdated: null,
+  },
 };
 const heaterModes = {
   "0": "Off",
   "1": "Solar",
   "2": "Solar Preferred",
   "3": "Heat Pump",
-  "4": "Don't Change"
+  "4": "Don't Change",
 };
 const heaterStatus = {
   "0": "Off",
   "1": "Solar Heater On",
-  "2": "Heat Pump On"
+  "2": "Heat Pump On",
 };
 
 function findScreenLogic() {
@@ -76,7 +78,7 @@ function findScreenLogic() {
     poolSpaInfo.meta.server = {
       ipAddress: slIpAddress,
       port: slPort,
-      name: slName
+      name: slName,
     };
     if (slName) {
       poolSpaInfo.meta.server.name = slName;
@@ -84,7 +86,7 @@ function findScreenLogic() {
   } else {
     const finder = new ScreenLogic.FindUnits();
     finder.search();
-    finder.on("serverFound", function(server) {
+    finder.on("serverFound", function (server) {
       console.log(
         "Found ScreenLogic unit at: " + server.address + ":" + server.port
       );
@@ -94,7 +96,7 @@ function findScreenLogic() {
       poolSpaInfo.meta.server = {
         ipAddress: server.address,
         port: server.port,
-        name: server.gatewayName
+        name: server.gatewayName,
       };
       finder.close();
     });
@@ -111,7 +113,7 @@ function setHeatMode(body, heatMode) {
   const client = getSlClient();
   const heatBody = bodyMap[body];
   client
-    .on("loggedIn", function() {
+    .on("loggedIn", function () {
       console.log(
         "Logged in, setting heater state for " +
           heatBody +
@@ -120,14 +122,14 @@ function setHeatMode(body, heatMode) {
       );
       this.setHeatMode(clientInt, body, heatMode);
     })
-    .on("heatModeChanged", function() {
+    .on("heatModeChanged", function () {
       console.log(
         "Changed " + heatBody + " heater state to " + heaterModes[heatMode]
       );
       client.close();
       getAllpoolSpaInfo();
     })
-    .on("loginFailed", function() {
+    .on("loginFailed", function () {
       console.log("Unable to login... refreshing client.");
       client.close();
       // findScreenLogic();
@@ -143,16 +145,16 @@ function setHeatSetPoint(body, temp) {
     "Setting heater setpoint for " + heatBody + " to " + temp + " degrees."
   );
   client
-    .on("loggedIn", function() {
+    .on("loggedIn", function () {
       console.log("Logged in...");
       this.setSetPoint(clientInt, body, temp);
     })
-    .on("setPointChanged", function() {
+    .on("setPointChanged", function () {
       console.log(heatBody + " setpoint Successfully changed to " + temp);
       client.close();
       getAllpoolSpaInfo();
     })
-    .on("loginFailed", function() {
+    .on("loginFailed", function () {
       console.log("Unable to login...");
       client.close();
       // findScreenLogic();
@@ -169,19 +171,19 @@ function setNewCircuitState(circuitId, state) {
       circuitId
   );
   client
-    .on("loggedIn", function() {
+    .on("loggedIn", function () {
       console.log(
         "Logged in, sending state " + state + " to circuit ID " + circuitId
       );
       this.setCircuitState(clientInt, circuitId, state);
     })
-    .on("circuitStateChanged", function() {
+    .on("circuitStateChanged", function () {
       const newState = state === 0 ? "off" : "on";
       console.log(`Circuit ${circuitId} set to ${newState}.`);
       client.close();
       getAllpoolSpaInfo();
     })
-    .on("loginFailed", function() {
+    .on("loginFailed", function () {
       console.log("Unable to login...refreshing client.");
       client.close();
       findScreenLogic();
@@ -192,7 +194,7 @@ function setNewCircuitState(circuitId, state) {
 function getAllpoolSpaInfo() {
   const client = getSlClient();
   client
-    .on("loggedIn", function() {
+    .on("loggedIn", function () {
       // console.log('Getting all info...')
       // console.log(client.challengeString.substr(9))
       if (!poolSpaInfo.meta.server.name) {
@@ -201,15 +203,15 @@ function getAllpoolSpaInfo() {
       }
       this.getVersion();
     })
-    .on("version", function(version) {
+    .on("version", function (version) {
       this.getPoolStatus();
       // console.log(version)
       poolSpaInfo.firmware = {
-        version: version.version
+        version: version.version,
       };
       // console.log(' version=' + version.version);
     })
-    .on("poolStatus", function(status) {
+    .on("poolStatus", function (status) {
       this.getChemicalData();
       poolSpaInfo.meta.airTemp = status.airTemp;
       poolSpaInfo.meta.activeAlarms = status.alarms;
@@ -241,9 +243,9 @@ function getAllpoolSpaInfo() {
               activeCode: status.heatStatus[0],
               activeType: heaterStatus[status.heatStatus[0]],
               setpoint: {
-                current: status.setPoint[0]
-              }
-            }
+                current: status.setPoint[0],
+              },
+            },
           },
           {
             name: "spa",
@@ -261,10 +263,10 @@ function getAllpoolSpaInfo() {
               activeCode: status.heatStatus[1],
               activeType: heaterStatus[status.heatStatus[1]],
               setpoint: {
-                current: status.setPoint[1]
-              }
-            }
-          }
+                current: status.setPoint[1],
+              },
+            },
+          },
         ],
         device: {
           currentStatus: status.ok,
@@ -272,18 +274,18 @@ function getAllpoolSpaInfo() {
           sync: status.isDeviceSync(),
           activeAlarms: status.alarms,
           serviceMode: status.isDeviceServiceMode(),
-          freezeMode: status.freezeMode
+          freezeMode: status.freezeMode,
         },
         chemistry: {
           saltPPM: status.saltPPM,
           ph: status.pH,
-          calciumSaturation: status.saturation
+          calciumSaturation: status.saturation,
         },
-        circuits: status.circuitArray
+        circuits: status.circuitArray,
       };
       rawObjects.status = status;
     })
-    .on("chemicalData", function(chemData) {
+    .on("chemicalData", function (chemData) {
       this.getSaltCellConfig();
       poolSpaInfo.chemistry = {
         info: "This data only valid if IntelliChem in installed",
@@ -291,20 +293,20 @@ function getAllpoolSpaInfo() {
         error: chemData.error,
         calciumLSI: chemData.calcium,
         cyanuric: chemData.cyanuricAcid,
-        alkalinity: chemData.alkalinity
+        alkalinity: chemData.alkalinity,
       };
       rawObjects.chemData = chemData;
     })
-    .on("saltCellConfig", function(saltCellConfig) {
+    .on("saltCellConfig", function (saltCellConfig) {
       this.getControllerConfig();
       poolSpaInfo.saltCell = {
         installed: saltCellConfig.installed,
         status: saltCellConfig.status,
-        saltLevel: saltCellConfig.salt
+        saltLevel: saltCellConfig.salt,
       };
       rawObjects.saltCellConfig = saltCellConfig;
     })
-    .on("controllerConfig", function(config) {
+    .on("controllerConfig", function (config) {
       poolSpaInfo.meta.tempInCelcius = config.degC;
       poolSpaInfo.controllerConfig = {
         tempInCelcius: config.degC,
@@ -318,11 +320,11 @@ function getAllpoolSpaInfo() {
         spaMaxSetPoint: config.maxSetPoint[1],
         interfaceTabFlags: config.interfaceTabFlags,
         equipFlags: config.equipFlags,
-        equipPresent: equipFlagsMeanings[config.equipFlags]
+        equipPresent: equipFlagsMeanings[config.equipFlags],
       };
       poolSpaInfo.chemistry.intellichemInstalled =
         poolSpaInfo.controllerConfig.equipPresent.intellichem;
-      poolSpaInfo.status.bodies.forEach(function(v, i) {
+      poolSpaInfo.status.bodies.forEach(function (v, i) {
         v.heater.equipPresent.heater =
           poolSpaInfo.controllerConfig.equipPresent.heater;
         v.heater.equipPresent.solar =
@@ -337,8 +339,8 @@ function getAllpoolSpaInfo() {
       });
       poolSpaInfo.meta.tempScale = config.degC ? "C" : "F";
       rawObjects.config = config;
-      poolSpaInfo.controllerConfig.bodyArray.forEach(c => {
-        poolSpaInfo.status.circuits.forEach(z => {
+      poolSpaInfo.controllerConfig.bodyArray.forEach((c) => {
+        poolSpaInfo.status.circuits.forEach((z) => {
           if (c.circuitId === z.id) {
             // console.log(c.circuitId)
             c.state = z.state;
@@ -369,12 +371,20 @@ function getAllpoolSpaInfo() {
       // console.log('Info Refreshed')
       client.close();
     })
-    .on("loginFailed", function() {
+    .on("loggedIn", function () {
+      this.getScheduleData();
+    })
+    .on("getScheduleData", function (schedules) {
+      // console.log("Getting schedule info...");
+      poolSpaInfo.schedules = schedules;
+    })
+    .on("loginFailed", function () {
       console.log("Unable to login...refreshing client.");
       client.close();
       findScreenLogic();
     });
   client.connect();
+  // getAllSchedules(client);
 }
 
 function setPoolModeOn() {
@@ -396,19 +406,19 @@ function setSpaModeOff() {
 function lightFunction(message) {
   const client = getSlClient();
   client
-    .on("loggedIn", function() {
+    .on("loggedIn", function () {
       console.log("Logged in");
       this.sendLightCommand(clientInt, message);
     })
-    .on("sentLightCommand", function() {
+    .on("sentLightCommand", function () {
       console.log("Light Command sent");
     })
-    .on("sentLightCommand", function() {
+    .on("sentLightCommand", function () {
       console.log("Light Command Acknowledged");
       client.close();
       getAllpoolSpaInfo();
     })
-    .on("loginFailed", function() {
+    .on("loginFailed", function () {
       console.log("Unable to login... refreshing client.");
       client.close();
       // findScreenLogic();
@@ -416,16 +426,38 @@ function lightFunction(message) {
   client.connect();
 }
 
+// Schedule support
+// function getAllSchedules() {
+
+//   const client = getSlClient();
+//   client
+//     .on("loggedIn", function () {
+//       this.getScheduleData();
+//     })
+//     .on("getScheduleData", function (schedules) {
+//       console.log("Getting schedule info...");
+//       poolSpaInfo.schedules = schedules;
+//       // scheduleInfo.schedules = schedules;
+//       // scheduleInfo.schedules.lastUpdated = Date.now();
+//       client.close();
+//     })
+//     .on("LoginFailed", function () {
+//       console.log("Unable to login...");
+//       client.close();
+//     });
+//   client.connect();
+// }
+
 // Express.js endpoint logic below this line
 // --------------------------------
 
 const error503Object = {
   code: "503",
   message:
-    "Server has not completed its initial data load... please try again in a moment."
+    "Server has not completed its initial data load... please try again in a moment.",
 };
 
-app.listen(expressPort, function() {
+app.listen(expressPort, function () {
   if (slIpAddress && slPort) {
     console.log(
       "Connecting to ScreenLogic at " +
@@ -441,21 +473,21 @@ app.listen(expressPort, function() {
   console.log(
     "Pool data update interval is " + pollInterval / 1000 + " seconds."
   );
-  setInterval(function() {
+  setInterval(function () {
     getAllpoolSpaInfo();
   }, pollInterval);
   console.log("Express server listening on port " + expressPort);
 });
 
-app.get("/health", function(req, res) {
+app.get("/health", function (req, res) {
   const response = {
-    healthy: poolSpaInfo.meta.successfulPolling
+    healthy: poolSpaInfo.meta.successfulPolling,
   };
   res.json(response);
   console.log("Returned " + req.method + " " + req.route.path);
 });
 
-app.get(baseApiPath + "/all", function(req, res) {
+app.get(baseApiPath + "/all", function (req, res) {
   if (poolSpaInfo.meta.successfulPolling) {
     res.json(poolSpaInfo);
     console.log("Returned " + req.method + " " + req.route.path);
@@ -464,74 +496,74 @@ app.get(baseApiPath + "/all", function(req, res) {
   }
 });
 
-app.get(baseApiPath + "/raw", function(req, res) {
+app.get(baseApiPath + "/raw", function (req, res) {
   console.log(req.ip);
   // console.log('All Pool Info: ' + poolSpaInfo);
   res.json(rawObjects);
   console.log("Returned " + req.method + " " + req.route.path);
 });
 
-app.put(baseApiPath + "/pool/on", function(req, res) {
+app.put(baseApiPath + "/pool/on", function (req, res) {
   console.log(req.ip);
   setPoolModeOn();
   const response = {
     body: "pool",
     action: "turn on",
-    sent: true
+    sent: true,
   };
   console.log("Sent poolOn to ScreenLogic");
   res.json(response);
   console.log("Returned " + req.method + " " + req.route.path);
 });
 
-app.put(baseApiPath + "/pool/off", function(req, res) {
+app.put(baseApiPath + "/pool/off", function (req, res) {
   console.log(req.ip);
   setPoolModeOff();
   var response = {
     body: "pool",
     action: "off",
-    sent: true
+    sent: true,
   };
   console.log("Sent poolOff to ScreenLogic");
   res.json(response);
   console.log("Returned " + req.method + " " + req.route.path);
 });
 
-app.put(baseApiPath + "/spa/on", function(req, res) {
+app.put(baseApiPath + "/spa/on", function (req, res) {
   console.log(req.ip);
   setSpaModeOn();
   var response = {
     body: "spa",
     action: "on",
-    sent: true
+    sent: true,
   };
   console.log("Sent spaOn to ScreenLogic");
   res.json(response);
   console.log("Returned " + req.method + " " + req.route.path);
 });
 
-app.put(baseApiPath + "/spa/off", function(req, res) {
+app.put(baseApiPath + "/spa/off", function (req, res) {
   console.log(req.ip);
   setSpaModeOff();
   const response = {
     body: "spa",
     action: "off",
-    sent: true
+    sent: true,
   };
   console.log("Sent spaOff to ScreenLogic");
   res.json(response);
   console.log("Returned " + req.method + " " + req.route.path);
 });
-app.put(baseApiPath + "/lights/:command", function(req, res) {
+app.put(baseApiPath + "/lights/:command", function (req, res) {
   // console.log(req.params.command)
   lightFunction(req.params.command);
   const response = {
-    lightCommand: req.params.command
+    lightCommand: req.params.command,
   };
   res.status(200).send(response);
 });
 
-app.put(baseApiPath + "/circuit/:circuit/:state", function(req, res) {
+app.put(baseApiPath + "/circuit/:circuit/:state", function (req, res) {
   console.log(req.ip);
   console.log(req.params);
   const changeCircuit = parseInt(req.params.circuit);
@@ -565,7 +597,7 @@ app.put(baseApiPath + "/circuit/:circuit/:state", function(req, res) {
   getAllpoolSpaInfo();
   const response = {
     circuit: changeCircuit,
-    newState: stateInt
+    newState: stateInt,
   };
   res.status(200).send(response);
   console.log("Returned " + req.method + " " + req.route.path);
@@ -574,10 +606,10 @@ app.put(baseApiPath + "/circuit/:circuit/:state", function(req, res) {
 const bodyTypeError = {
   code: 418,
   message: "Invalid target body",
-  info: "Valid target bodies are 'pool' or 'spa'"
+  info: "Valid target bodies are 'pool' or 'spa'",
 };
 
-app.put(baseApiPath + "/:body/heater/setpoint/:temp", function(req, res) {
+app.put(baseApiPath + "/:body/heater/setpoint/:temp", function (req, res) {
   console.log(req.params);
   if (poolSpaInfo.meta.successfulPolling) {
     if (req.params.body === "spa" || req.params.body === "pool") {
@@ -591,7 +623,7 @@ app.put(baseApiPath + "/:body/heater/setpoint/:temp", function(req, res) {
         const response = {
           body: req.params.body,
           newSetpoint: targetTemp,
-          success: true
+          success: true,
         };
         res.json(response);
         console.log("Returned " + req.method + " " + req.route.path);
@@ -599,7 +631,7 @@ app.put(baseApiPath + "/:body/heater/setpoint/:temp", function(req, res) {
         console.log("Invalid Setpoint Temperature");
         var setPointError = {
           code: "418",
-          message: "Setpoint should be between " + minTemp + " and " + maxTemp
+          message: "Setpoint should be between " + minTemp + " and " + maxTemp,
         };
         res.status(418).send(setPointError);
       }
@@ -611,7 +643,7 @@ app.put(baseApiPath + "/:body/heater/setpoint/:temp", function(req, res) {
   }
 });
 
-app.put(baseApiPath + "/:body/heater/mode/:mode", function(req, res) {
+app.put(baseApiPath + "/:body/heater/mode/:mode", function (req, res) {
   // heatMode: 0: "Off", 1: "Solar", 2 : "Solar Preferred", 3 : "Heat Pump", 4: "Don't Change"
   console.log(req.params);
   if (poolSpaInfo.meta.successfulPolling) {
@@ -624,7 +656,7 @@ app.put(baseApiPath + "/:body/heater/mode/:mode", function(req, res) {
           targetBody: req.params.body,
           newHeaterMode: targetHeatMode,
           newHeaterModeMeaning: heaterModes[targetHeatMode],
-          success: true
+          success: true,
         };
         res.json(response);
         console.log("Returned " + req.method + " " + req.route.path);
@@ -632,7 +664,7 @@ app.put(baseApiPath + "/:body/heater/mode/:mode", function(req, res) {
         const heatModeError = {
           code: "418",
           message: "Invalid Heat Mode",
-          "Valid Heat Modes": heaterModes
+          "Valid Heat Modes": heaterModes,
         };
         res.status(418).send(heatModeError);
       }
@@ -644,9 +676,15 @@ app.put(baseApiPath + "/:body/heater/mode/:mode", function(req, res) {
   }
 });
 
-app.get("/connection", function(req, res) {
+app.get("/connection", function (req, res) {
   findScreenLogic();
   const slConnection = getSlClient();
   res.json(slConnection);
+  console.log("Returned " + req.method + " " + req.route.path);
+});
+
+app.get(baseApiPath + "/schedules", function (req, res) {
+  console.log(req.params);
+  res.json(poolSpaInfo.schedules);
   console.log("Returned " + req.method + " " + req.route.path);
 });
