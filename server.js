@@ -770,14 +770,14 @@ app.post(baseApiPath + "/schedules/:type", function (req, res) {
 // app.delete(baseApiPath + "/schedules/:id", function (req, res) {
 //   console.log(req.params);
 //   var scheduleId = req.params.id;
-//   var scheduleExists = true;
+//   var scheduleExists = false;
 //   if (poolSpaInfo.meta.successfulPolling) {
-//     // poolSpaInfo.schedules.events.forEach(function (e, i) {
-//     //   if (e.scheduleId == scheduleId) {
-//     //     console.log("Schedule Exists");
-//     //     scheduleExists = true;
-//     //   }
-//     // });
+    // poolSpaInfo.schedules.events.forEach(function (e, i) {
+    //   if (e.scheduleId == scheduleId) {
+    //     console.log("Schedule Exists");
+    //     scheduleExists = true;
+    //   }
+    // });
 //     if (scheduleExists) {
 //       const client = getSlClient();
 //       client
