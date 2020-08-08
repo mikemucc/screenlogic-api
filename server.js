@@ -2,14 +2,17 @@
 "use strict";
 
 const { equipFlagsMeanings } = require("./equipFlagsMeanings");
-
+const delay = require("delay");
 const express = require("express");
 const app = express();
+// const bodyParser = require('body-parser');
 const expressPort = process.env.PORT || 3000;
 const ScreenLogic = require("node-screenlogic");
 const cors = require("cors");
+const nodeScreenlogic = require("node-screenlogic");
+const { SLControllerConfigMessage } = require("node-screenlogic/messages");
 app.use(cors());
-
+app.use(express.json());
 // defaulting to 5 second poll intervals.
 // Override with POLL_INTERVAL environment variable.
 const pollInterval = process.env.POLL_INTERVAL || 5000;
@@ -50,7 +53,10 @@ const poolSpaInfo = {
   },
 };
 
-const scheduleInfo = {};
+// const scheduleInfo = {};
+
+// I need an object in the global context to keep track of new schedule IDs because... javascript.
+// var newScheduleId = null;
 
 const rawObjects = {
   meta: {
@@ -103,7 +109,7 @@ function findScreenLogic() {
   }
 }
 
-function getSlClient(port=slPort, ipAddress=slIpAddress) {
+function getSlClient(port = slPort, ipAddress = slIpAddress) {
   return new ScreenLogic.UnitConnection(port, ipAddress);
 }
 
@@ -307,7 +313,18 @@ function getAllpoolSpaInfo() {
       };
       rawObjects.saltCellConfig = saltCellConfig;
     })
+    .on("getScheduleData", function (schedules) {
+      // console.log("Getting schedule info...");
+      poolSpaInfo.schedules = schedules;
+      poolSpaInfo.schedules.lastUpdated = pollTime;
+    })
     .on("controllerConfig", function (config) {
+      var pumps = config.pumpCircArray;
+      // Object.keys(pumps).forEach(function(key){
+      //   if(pumps[key] != 0){
+      //     this.getPumpStatus(key)
+      //   }
+      // })
       poolSpaInfo.meta.tempInCelcius = config.degC;
       poolSpaInfo.controllerConfig = {
         tempInCelcius: config.degC,
@@ -372,12 +389,8 @@ function getAllpoolSpaInfo() {
       // console.log('Info Refreshed')
       client.close();
     })
-    .on("getScheduleData", function (schedules) {
-      // console.log("Getting schedule info...");
-      poolSpaInfo.schedules = schedules;
-      poolSpaInfo.schedules.lastUpdated = pollTime;
-    })
     .on("loginFailed", function () {
+      //Handle login failure
       console.log("Unable to login...refreshing client.");
       client.close();
       findScreenLogic();
@@ -426,6 +439,25 @@ function lightFunction(message) {
   client.connect();
 }
 
+function updateScheduleEvent(scheduleObj) {}
+
+function createNewSchedule(scheduleType) {
+  //blank the newScheduleId var...
+  var newScheduleId = null;
+  const client = getSlClient();
+  client
+    .on("loggedIn", function () {
+      console.log("Logged in...");
+      this.addNewScheduleEvent(scheduleType);
+    })
+    .on("addNewScheduleEvent", function (newScheduleObj) {
+      console.log(newScheduleObj);
+      newScheduleId = newScheduleObj.scheduleId;
+      console.log("New Schedule Event ID is " + newScheduleObj.scheduleId);
+      client.close();
+    });
+  client.connect();
+}
 
 // Schedule support
 // At some point in the future, when I get good at node.js, I'll refactor...
@@ -681,12 +713,155 @@ app.put(baseApiPath + "/:body/heater/mode/:mode", function (req, res) {
 app.get("/connection", function (req, res) {
   findScreenLogic();
   const slConnection = getSlClient();
-  res.json(slConnection);
+  res.stats(200).json(slConnection);
   console.log("Returned " + req.method + " " + req.route.path);
 });
 
+//  Schedules!
+// Need to differentiate between events and run-once events (egg timers)
 app.get(baseApiPath + "/schedules", function (req, res) {
   console.log(req.params);
-  res.json(poolSpaInfo.schedules);
+  const activeSchedules = {
+    events: poolSpaInfo.schedules.events,
+  };
+  res.json(activeSchedules);
   console.log("Returned " + req.method + " " + req.route.path);
 });
+
+app.post(baseApiPath + "/schedules/:type", function (req, res) {
+  // Schedule Types: 0 = Normal, 1 = Run Once (Egg Timer)
+  console.log(req.params);
+  const newScheduleReturn = {
+    status: "unknown",
+    scheduleId: null,
+  };
+  if (poolSpaInfo.meta.successfulPolling) {
+    if (req.params.type === "0" || req.params.type === "1") {
+      var scheduleType = parseInt(req.params.type);
+      const client = getSlClient();
+      client
+        .on("loggedIn", function () {
+          console.log("Logged in...");
+          this.addNewScheduleEvent(scheduleType);
+          console.log('Sending new event data...')
+        })
+        .on("addNewScheduleEvent", function (newScheduleObj) {
+          console.log(newScheduleObj);
+          newScheduleReturn.status = "success";
+          newScheduleReturn.scheduleId = newScheduleObj.scheduleId;
+          console.log("New Schedule Event ID is " + newScheduleObj.scheduleId);
+          res.status(200).json(newScheduleReturn);
+          client.close();
+        });
+      client.connect();
+    } else {
+      var invalidSchedTypeRes = {
+        code: 418,
+        message: "Invalid Schedule Type",
+        info: "Valid Schedule types are 0 (Daily) or 1 (Run Once/Egg Timer)",
+      };
+      res.status(418).send(invalidSchedTypeRes);
+    }
+  } else {
+    res.status(503).send(error503Object);
+  }
+});
+
+// app.delete(baseApiPath + "/schedules/:id", function (req, res) {
+//   console.log(req.params);
+//   var scheduleId = req.params.id;
+//   var scheduleExists = true;
+//   if (poolSpaInfo.meta.successfulPolling) {
+//     // poolSpaInfo.schedules.events.forEach(function (e, i) {
+//     //   if (e.scheduleId == scheduleId) {
+//     //     console.log("Schedule Exists");
+//     //     scheduleExists = true;
+//     //   }
+//     // });
+//     if (scheduleExists) {
+//       const client = getSlClient();
+//       client
+//         .on("loggedIn", function () {
+//           console.log("Logged in...");
+//           this.deleteScheduleEventById(scheduleId);
+//         })
+//         .on("deleteScheduleById", function () {
+//           // console.log();
+//           var message = "Successfully deleted schedule ID " + scheduleId;
+//           console.log(message);
+//           var response = {
+//             code: 200,
+//             message: message,
+//           };
+//           res.json(response);
+//           client.close();
+//         });
+
+//       client.connect();
+//     } else {
+//       const response = {
+//         code: 404,
+//         message: "Schedule ID Not Found",
+//         scheduleId: scheduleId,
+//       };
+//       res.status(404).send(response);
+//     }
+//   } else {
+//     res.status(503).send(error503Object);
+//   }
+// });
+
+// app.put(baseApiPath + "/schedules/:id", function (req, res){
+//   console.log(req.params)
+//   // console.log(req.body.days)
+//   var scheduleId = req.params.id;
+//   var scheduleExists = false;
+//   if (poolSpaInfo.meta.successfulPolling) {
+//     poolSpaInfo.schedules.events.forEach(function (e, i) {
+//       if (e.scheduleId == scheduleId) {
+//         console.log("Schedule Exists");
+//         scheduleExists = true;
+//       }
+//     });
+//   if(scheduleExists){
+//     const client = getSlClient();
+//       client
+//         .on("loggedIn", function (helper) {
+//           console.log("Logged in...");
+//           const scheduleObject = {
+//             scheduleId : req.params.id,
+//             circuitId : req.body.circuitId,
+//             startTime : req.body.startTime,
+//             stopTime : req.body.stopTime,
+//             days : req.body.days,
+//             dayMask: helper.encodeDayMask(req.body.days),
+//             flags : req.body.flags,
+//             heatCmd : req.body.heatCmd,
+//             heatSetPoint: req.body.heatSetPoint
+//           }
+//           this.setScheduleEventById(scheduleObject);
+//         }).on("setScheduleEventById", function(updatedSchedObj){
+//           console.log(updatedSchedObj);
+//           var message = "Successfully updated schedule ID " + scheduleId;
+//           console.log(message);
+//           var response = {
+//             code: 200,
+//             message: message,
+//           };
+
+//         });
+//     // res.json(scheduleObject)
+//     client.connect()
+// } else {
+//   const response = {
+//     code: 404,
+//     message: "Could not update Schedule, ID Not Found",
+//     scheduleId: scheduleId,
+//   };
+//   res.status(404).send(response);
+// }
+//   // res.send('works')
+// } else {
+//   res.status(503).send(error503Object);
+// }
+// });

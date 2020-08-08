@@ -1,0 +1,10 @@
+{
+  "scheduleId": 706,
+  "circuitId": 505,
+  "startTime": "1900",
+  "stopTime": "1901",
+  "flags": 0,
+  "heatCmd": 4,
+  "heatSetPoint": 70,
+  "days": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+}
