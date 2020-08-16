@@ -10,6 +10,7 @@ const ScreenLogic = require("node-screenlogic");
 const cors = require("cors");
 const nodeScreenlogic = require("node-screenlogic");
 const { SLControllerConfigMessage } = require("node-screenlogic/messages");
+const { raw } = require("express");
 app.use(cors());
 app.use(express.json());
 // defaulting to 5 second poll intervals.
@@ -58,6 +59,9 @@ const poolSpaInfo = {
       port: null,
       name: null,
     },
+  },
+  status: {
+    pumps : {}
   },
 };
 
@@ -207,7 +211,7 @@ function getAllpoolSpaInfo() {
   poolSpaInfo.meta.pollInProgress = true;
   const client = getSlClient();
   getAllSchedules(0);
-  getAllSchedules(1);  
+  getAllSchedules(1);
   const pollTime = Date.now();
   client
     .on("loggedIn", function () {
@@ -222,8 +226,6 @@ function getAllpoolSpaInfo() {
       this.getChemicalData();
       this.getSaltCellConfig();
       this.getControllerConfig();
-      // this.getScheduleData(0);
-      // this.getScheduleData(1);
     })
     .on("version", function (version) {
       console.log("Got Version " + version);
@@ -324,12 +326,6 @@ function getAllpoolSpaInfo() {
       rawObjects.saltCellConfig = saltCellConfig;
     })
     .on("controllerConfig", function (config) {
-      var pumps = config.pumpCircArray;
-      // Object.keys(pumps).forEach(function(key){
-      //   if(pumps[key] != 0){
-      //     this.getPumpStatus(key)
-      //   }
-      // })
       poolSpaInfo.meta.tempInCelcius = config.degC;
       poolSpaInfo.controllerConfig = {
         tempInCelcius: config.degC,
@@ -444,6 +440,50 @@ function lightFunction(message) {
     });
   client.connect();
 }
+// Pump Info
+function getPumpStatus(pumpId){
+  const pumps = poolSpaInfo.controllerConfig.pumps
+    if (pumps[pumpId] != 0){
+      const client = getSlClient();
+      client.on("loggedIn", function (){
+        this.getPumpStatus(pumpId);
+      })
+      .on('getPumpStatus', function(pumpData){
+        var pumpTypeName = "Unknown Pump Type";
+        if(pumpData.pumpType === ScreenLogic.PUMP_TYPE_INTELLIFLOVF){
+          pumpTypeName = "IntelliFlo VF"
+        } else if (pumpData.pumpType === ScreenLogic.PUMP_TYPE_INTELLIFLOVS){
+          pumpTypeName = "IntelliFlo VFS"
+        } else if (pumpData.pumpType === ScreenLogic.PUMP_TYPE_INTELLIFLOVSF){
+          pumpTypeName = "IntelliFlo VS"
+        }
+        console.log(pumpTypeName);
+        rawObjects.pumps = {
+          [pumpId] : pumpData
+        };
+        poolSpaInfo.status.pumps = {
+          [pumpId] : {
+            pumpSetting : pumpData.pumpSetting,
+            pumpType: pumpData.pumpType,
+            isRunning: pumpData.isRunning,
+            pumpTypeName: pumpTypeName,
+            pumpWatts: pumpData.pumpWatts,
+            pumpRPMs: pumpData.pumpRPMs,
+            pumpGPMs: pumpData.pumpGPMS,
+            pumpUnknown1: pumpData.pumpUnknown1,
+            pumpUnknown2: pumpData.pumpUnknown2
+          }
+        };
+        // console.log(poolSpaInfo.status.pumps);
+        client.close();
+      })
+      client.connect();
+    } else {
+      console.log('There is no pump registered with ID ' + pumpId);
+    }
+    
+}
+
 
 // Schedule support
 // At some point in the future, when I get good at node.js, I'll refactor...
@@ -519,6 +559,12 @@ app.listen(expressPort, function () {
       getAllpoolSpaInfo();
       if (poolSpaInfo.meta.successfulPolling){
         aggregateScheduleIds();
+        var pumpIds = Object.keys(poolSpaInfo.controllerConfig.pumps);
+        pumpIds.forEach(function (key, i){
+          if(poolSpaInfo.controllerConfig.pumps[key] != 0){
+            getPumpStatus(key);
+          }
+        })
       }
       poolSpaInfo.meta.skippedPolls = 0;
     } else {
