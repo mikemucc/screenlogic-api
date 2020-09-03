@@ -321,7 +321,6 @@ function getAllpoolSpaInfo() {
         equipPresent: equipFlagsMeanings[config.equipFlags]
       };
       poolSpaInfo.chemistry.intellichemInstalled = config.hasIntellichem();
-        poolSpaInfo.controllerConfig.equipPresent.intellichem;
       poolSpaInfo.status.bodies.forEach(function(v, i) {
         v.heater.equipPresent.heater =
           poolSpaInfo.controllerConfig.equipPresent.heater;
