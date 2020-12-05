@@ -135,6 +135,7 @@ function setNewCircuitState(circuitId, state) {
       const newState = state === 0 ? "off" : "on";
       console.log(`Circuit ${circuitId} set to ${newState}.`);
       client.close();
+      getAllpoolSpaInfo();
     })
     .on("loginFailed", function () {
       console.log("Unable to login...refreshing client.");
