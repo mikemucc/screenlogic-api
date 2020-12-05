@@ -18,11 +18,12 @@ const bodyMap = {
 exports.bodyMap = bodyMap;
 const poolSpaInfo = {
   schedules: {
-    eventIds: new Set()
+    eventIds: new Set(),
+    daily: []
   },
   meta: {
-    lastUpdated: null,
-    tempInCelcius: null,
+    lastUpdated: new Number(),
+    tempInCelcius: false,
     successfulPolling: false,
     skippedPolls: 0,
     pollInProgress: false,
@@ -32,9 +33,75 @@ const poolSpaInfo = {
       port: null,
       name: null,
     },
+    airTemp: new Number(),
+    tempScale: "",
+    lightsOn: false
   },
-  chemistry: {},
+  chemistry: {
+    info: "This data only valid if IntelliChem in installed",
+    isValid: true,
+    error: false,
+    calciumLSI: 0,
+    cyanuric: 0,
+    alkalinity: 0
+  },
   status: {
+    bodies: [
+      {
+      name: "pool",
+      circuitId: new Number(),
+      interfaceId: 0,
+      altInterfaceId: 0,
+      waterTemp: 0,
+      active: false,
+      airTemp: 0,
+      heater: {
+        equipPresent: {
+          heater: false,
+          solar: false,
+          solarisheater: false,
+          cooler: false
+        },
+        modeCode: 0,
+        mode: "Off",
+        active: false,
+        activeCode: 0,
+        activeType: "Off",
+        setpoint: {
+          current: 0,
+          min: 0,
+          max: 0
+        }
+      },
+      tempScale: ""
+    },
+      {name: "spa",
+      circuitId: 500,
+      interfaceId: 1,
+      altInterfaceId: 1,
+      waterTemp: 0,
+      active: false,
+      airTemp: 0,
+      heater: {
+        equipPresent: {
+          heater: false,
+          solar: false,
+          solarisheater: false,
+          cooler: false
+        },
+        modeCode: 0,
+        mode: "Off",
+        active: false,
+        activeCode: 0,
+        activeType: "Off",
+        setpoint: {
+          current: 0,
+          min: 0,
+          max: 0
+        }
+      },
+      tempScale: ""}
+    ],
     pumps: {}
   },
 };
