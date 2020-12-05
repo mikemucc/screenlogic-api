@@ -1,5 +1,8 @@
 # FROM node:lts-alpine
-FROM node:12-alpine
+# FROM node:15-alpine
+
+FROM node:15-stretch-slim
+
 
 COPY package*.json /usr/src/app/
 COPY *.js /usr/src/app/
