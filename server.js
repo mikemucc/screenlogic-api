@@ -2,7 +2,18 @@
 "use strict";
 
 const { equipFlagsMeanings } = require("./equipFlagsMeanings");
-const { poolSpaInfo, bodyMap, heaterModes, clientInt, commonCircuitMap, heaterStatus, rawObjects, scheduleTypeMap, pumpsSenderBase, schedulesSenderBase} = require("./constants");
+const {
+  poolSpaInfo,
+  bodyMap,
+  heaterModes,
+  clientInt,
+  commonCircuitMap,
+  heaterStatus,
+  rawObjects,
+  scheduleTypeMap,
+  pumpsSenderBase,
+  schedulesSenderBase,
+} = require("./constants");
 const express = require("express");
 const app = express();
 // const bodyParser = require('body-parser');
@@ -88,9 +99,9 @@ function setHeatMode(body, heatMode) {
         "Changed " + heatBody + " heater state to " + heaterModes[heatMode]
       );
       client.close();
-      setTimeout(function() {
+      setTimeout(function () {
         getAllpoolSpaInfo();
-      }, 10000)
+      }, 10000);
     })
     .on("loginFailed", function () {
       console.log("Unable to login... refreshing client.");
@@ -113,9 +124,9 @@ function setHeatSetPoint(body, temp) {
     .on("setPointChanged", function () {
       console.log(heatBody + " setpoint Successfully changed to " + temp);
       client.close();
-      setTimeout(function() {
+      setTimeout(function () {
         getAllpoolSpaInfo();
-      }, 10000)
+      }, 10000);
     })
     .on("loginFailed", function () {
       console.log("Unable to login...");
@@ -158,33 +169,32 @@ function setNewCircuitState(circuitId, state) {
 function getAllpoolSpaInfo() {
   const client = getSlClient();
   const pollTime = Date.now();
-  console.log('Poll for full ScreenLogic update at '+ pollTime)
+  console.log("Poll for full ScreenLogic update at " + pollTime);
   client
     .on("loggedIn", function () {
-      console.log('Logged In...')
+      console.log("Logged In...");
       if (!poolSpaInfo.meta.server.name) {
         poolSpaInfo.meta.server.name =
           "Pentair: " + client.challengeString.substr(9);
-      };
+      }
       this.getVersion();
       this.getPoolStatus();
       this.getSaltCellConfig();
       this.getControllerConfig();
       var i;
       for (i = 0; i < 8; i++) {
-        console.log('Pump ID: ' + i);
+        console.log("Pump ID: " + i);
         var pumpSid = pumpsSenderBase + i;
         console.log("Pump SenderID: " + pumpSid);
         this.getPumpStatus(i, pumpSid);
-      };
+      }
       for (i = 0; i < 2; i++) {
         var scheduleSid = schedulesSenderBase + i;
-        console.log('Requesting Schedule Type: ' + scheduleTypeMap[i])
-        console.log('Schedule SenderID: ' + scheduleSid);
+        console.log("Requesting Schedule Type: " + scheduleTypeMap[i]);
+        console.log("Schedule SenderID: " + scheduleSid);
         this.getScheduleData(i, scheduleSid);
-      };
+      }
       this.getChemicalData();
-
     })
     .on("version", function (version) {
       console.log("Got Version " + version);
@@ -194,19 +204,19 @@ function getAllpoolSpaInfo() {
       // console.log(' version=' + version.version);
     })
     .on("poolStatus", function (status) {
-      poolSpaInfo.meta.airTemp = status.airTemp || poolSpaInfo.meta.airTemp;
-      poolSpaInfo.meta.activeAlarms = status.alarms || poolSpaInfo.meta.activeAlarms;
+      poolSpaInfo.meta.airTemp = status.airTemp;
+      poolSpaInfo.meta.activeAlarms = status.alarms;
       poolSpaInfo.meta.serviceMode = status.isDeviceServiceMode();
-      poolSpaInfo.meta.freezeMode = status.freezeMode || poolSpaInfo.meta.freezeMode; 
-      poolSpaInfo.meta.cleanerDelay = status.cleanerDelay || poolSpaInfo.meta.cleanerDelay;
-      
+      poolSpaInfo.meta.freezeMode = status.freezeMode;
+      poolSpaInfo.meta.cleanerDelay = status.cleanerDelay;
+
       let poolActive = false;
       try {
         poolActive = status.isPoolActive();
       } catch (e) {
         // ignore
       }
-      
+
       let spaActive = false;
       try {
         spaActive = status.isSpaActive();
@@ -325,7 +335,7 @@ function getAllpoolSpaInfo() {
               c.active = true;
             }
           }
-         });
+        });
         if (c.name === "Lights") {
           // console.log(c.name)
           // console.log(Object.keys(c))
@@ -333,42 +343,42 @@ function getAllpoolSpaInfo() {
         }
       });
     })
-    .on('getPumpStatus', function(pumpData){
+    .on("getPumpStatus", function (pumpData) {
       var pumpId = pumpData.senderId - pumpsSenderBase;
-      console.log('Got Pump Status for senderID ' + pumpData.senderId)
+      console.log("Got Pump Status for senderID " + pumpData.senderId);
       var pumpTypeName = "Unknown Pump Type";
-      if(pumpData.pumpType === ScreenLogic.PUMP_TYPE_INTELLIFLOVF){
-        pumpTypeName = "IntelliFlo VF"
-      } else if (pumpData.pumpType === ScreenLogic.PUMP_TYPE_INTELLIFLOVS){
-        pumpTypeName = "IntelliFlo VFS"
-      } else if (pumpData.pumpType === ScreenLogic.PUMP_TYPE_INTELLIFLOVSF){
-        pumpTypeName = "IntelliFlo VS"
-      };
+      if (pumpData.pumpType === ScreenLogic.PUMP_TYPE_INTELLIFLOVF) {
+        pumpTypeName = "IntelliFlo VF";
+      } else if (pumpData.pumpType === ScreenLogic.PUMP_TYPE_INTELLIFLOVS) {
+        pumpTypeName = "IntelliFlo VFS";
+      } else if (pumpData.pumpType === ScreenLogic.PUMP_TYPE_INTELLIFLOVSF) {
+        pumpTypeName = "IntelliFlo VS";
+      }
       console.log(pumpTypeName);
       rawObjects.pumps = {
-        [pumpId] : pumpData
+        [pumpId]: pumpData,
       };
       var pumpApiData = {
-          pumpSetting : pumpData.pumpSetting,
-          pumpType: pumpData.pumpType,
-          isRunning: pumpData.isRunning,
-          pumpTypeName: pumpTypeName,
-          pumpWatts: pumpData.pumpWatts,
-          pumpRPMs: pumpData.pumpRPMs,
-          pumpGPMs: pumpData.pumpGPMS,
-          pumpUnknown1: pumpData.pumpUnknown1,
-          pumpUnknown2: pumpData.pumpUnknown2
-      }
+        pumpSetting: pumpData.pumpSetting,
+        pumpType: pumpData.pumpType,
+        isRunning: pumpData.isRunning,
+        pumpTypeName: pumpTypeName,
+        pumpWatts: pumpData.pumpWatts,
+        pumpRPMs: pumpData.pumpRPMs,
+        pumpGPMs: pumpData.pumpGPMS,
+        pumpUnknown1: pumpData.pumpUnknown1,
+        pumpUnknown2: pumpData.pumpUnknown2,
+      };
       poolSpaInfo.status.pumps = {
-        [pumpId.toString()] : pumpApiData
+        [pumpId.toString()]: pumpApiData,
       };
     })
     .on("getScheduleData", function (schedules) {
       console.log("Schedule return SenderID: " + schedules.senderId);
       var scheduleType = schedules.senderId - schedulesSenderBase;
-      console.log(scheduleType)
+      console.log(scheduleType);
       var scheduleTypeName = scheduleTypeMap[scheduleType];
-      console.log(scheduleTypeName)
+      console.log(scheduleTypeName);
       poolSpaInfo.schedules[scheduleTypeName] = schedules.events;
       aggregateScheduleIds();
     })
@@ -410,22 +420,22 @@ function poolSpaChangeListner() {
   const client = getSlClient();
   client
     .on("loggedIn", function () {
-      console.log('Listner logged In...')
+      console.log("Listner logged In...");
       //set up listners...
       this.addClient(1234);
       this.getPoolStatus();
     })
     .on("poolStatus", function (status) {
-      console.log('Got async poolStatus event...');
+      console.log("Got async poolStatus event...");
       // console.log(status);
       // console.log('Service Mode?');
       // console.log(status.isDeviceServiceMode());
       poolSpaInfo.meta.airTemp = status.airTemp;
       poolSpaInfo.meta.activeAlarms = status.alarms;
       poolSpaInfo.meta.serviceMode = status.isDeviceServiceMode();
-      poolSpaInfo.meta.freezeMode = status.freezeMode; 
+      poolSpaInfo.meta.freezeMode = status.freezeMode;
       poolSpaInfo.meta.cleanerDelay = status.cleanerDelay;
-      
+
       let poolActive = false;
       try {
         poolActive = status.isPoolActive();
@@ -444,10 +454,12 @@ function poolSpaChangeListner() {
       poolSpaInfo.status.bodies[0].airTemp = status.airTemp;
 
       poolSpaInfo.status.bodies[0].heater.modeCode = status.heatMode[0];
-      poolSpaInfo.status.bodies[0].heater.mode = heaterModes[status.heatMode[0]];
+      poolSpaInfo.status.bodies[0].heater.mode =
+        heaterModes[status.heatMode[0]];
       poolSpaInfo.status.bodies[0].heater.active = status.heatStatus[0] > 0;
       poolSpaInfo.status.bodies[0].heater.activeCode = status.heatStatus[0];
-      poolSpaInfo.status.bodies[0].heater.activeType = heaterStatus[status.heatStatus[0]];
+      poolSpaInfo.status.bodies[0].heater.activeType =
+        heaterStatus[status.heatStatus[0]];
       poolSpaInfo.status.bodies[0].heater.setpoint.current = status.setPoint[0];
 
       // update spa info
@@ -455,10 +467,12 @@ function poolSpaChangeListner() {
       poolSpaInfo.status.bodies[1].active = spaActive;
       poolSpaInfo.status.bodies[1].airTemp = status.airTemp;
       poolSpaInfo.status.bodies[1].heater.modeCode = status.heatMode[1];
-      poolSpaInfo.status.bodies[1].heater.mode = heaterModes[status.heatMode[1]];
+      poolSpaInfo.status.bodies[1].heater.mode =
+        heaterModes[status.heatMode[1]];
       poolSpaInfo.status.bodies[1].heater.active = status.heatStatus[1] > 0;
       poolSpaInfo.status.bodies[1].heater.activeCode = status.heatStatus[1];
-      poolSpaInfo.status.bodies[1].heater.activeType = heaterStatus[status.heatStatus[1]];
+      poolSpaInfo.status.bodies[1].heater.activeType =
+        heaterStatus[status.heatStatus[1]];
       poolSpaInfo.status.bodies[1].heater.setpoint.current = status.setPoint[1];
       //update device status
       poolSpaInfo.status.device.currentStatus = status.ok;
@@ -510,9 +524,9 @@ function lightFunction(message) {
     .on("sentLightCommand", function () {
       console.log("Light Command Acknowledged");
       client.close();
-      setTimeout(function() {
+      setTimeout(function () {
         getAllpoolSpaInfo();
-      }, 10000)
+      }, 10000);
     })
     .on("loginFailed", function () {
       console.log("Unable to login... refreshing client.");
@@ -568,9 +582,7 @@ function lightFunction(message) {
 //     })
 //     client.connect();
 
-    
 // }
-
 
 // Schedule support
 // At some point in the future, when I get good at node.js, I'll refactor...
@@ -600,18 +612,18 @@ function lightFunction(message) {
 //       client.close();
 //     });
 //   client.connect();
-  
+
 // };
 function aggregateScheduleIds() {
   const schedulesKeys = ["daily", "runOnce"];
   var currentSchedIds = new Set();
-    schedulesKeys.forEach(function (key, i) {
-      poolSpaInfo.schedules[key].forEach(function (e, i) {
-        if(e.scheduleId){
-          currentSchedIds.add(e.scheduleId);
-        }
-        })
-      });
+  schedulesKeys.forEach(function (key, i) {
+    poolSpaInfo.schedules[key].forEach(function (e, i) {
+      if (e.scheduleId) {
+        currentSchedIds.add(e.scheduleId);
+      }
+    });
+  });
   activeScheduleIds = currentSchedIds;
   poolSpaInfo.schedules.eventIds = Array.from(activeScheduleIds);
   console.log("Active Schedule IDS: ");
@@ -627,8 +639,6 @@ const error503Object = {
   message:
     "Server has not completed its initial data load... please try again in a moment.",
 };
-
-
 
 app.listen(expressPort, function () {
   if (slIpAddress && slPort) {
@@ -649,18 +659,18 @@ app.listen(expressPort, function () {
   //This fixes the startup, but a one second delay is silly, this should be event driven...
 
   //Initial Call
-  setTimeout(function() {
+  setTimeout(function () {
     getAllpoolSpaInfo();
-  }, 1000)
+  }, 1000);
 
-  setTimeout(function(){
+  setTimeout(function () {
     poolSpaChangeListner();
-  }, 5000)
+  }, 5000);
 
-  setInterval(function() {
+  setInterval(function () {
     getAllpoolSpaInfo();
-  }, 60000)
-  
+  }, 60000);
+
   // aggregateScheduleIds();
   // setInterval(function () {
   //   console.log('Polling...')
@@ -675,7 +685,7 @@ app.listen(expressPort, function () {
   //     }
   //   }
   // }, pollInterval);
-  
+
   console.log("Express server listening on port " + expressPort);
 });
 
@@ -812,7 +822,7 @@ const bodyTypeError = {
 app.put(baseApiPath + "/:body/heater/setpoint/:temp", function (req, res) {
   console.log(req.toString());
   console.log(req.params);
-  res.send(req.params)
+  res.send(req.params);
   if (poolSpaInfo.meta.successfulPolling) {
     if (req.params.body === "spa" || req.params.body === "pool") {
       const targetBody = bodyMap[req.params.body];
@@ -843,8 +853,7 @@ app.put(baseApiPath + "/:body/heater/setpoint/:temp", function (req, res) {
   } else {
     res.status(503).send(error503Object);
   }
-}
-);
+});
 
 app.put(baseApiPath + "/:body/heater/mode/:mode", function (req, res) {
   // heatMode: 0: "Off", 1: "Solar", 2 : "Solar Preferred", 3 : "Heat Pump", 4: "Don't Change"
@@ -956,13 +965,12 @@ app.delete(baseApiPath + "/schedules/:id", function (req, res) {
     if (activeScheduleIds.has(scheduleId)) {
       scheduleIdDeleteQueue.add(scheduleId);
       const client = getSlClient();
-      client
-        .on("loggedIn", function () {
-          console.log("Logged in...");
-          this.deleteScheduleEventById(scheduleId);
-          console.log("Sent delete schedule for ID " + scheduleId);
-          client.close();
-        });
+      client.on("loggedIn", function () {
+        console.log("Logged in...");
+        this.deleteScheduleEventById(scheduleId);
+        console.log("Sent delete schedule for ID " + scheduleId);
+        client.close();
+      });
       client.connect();
       const message = "Successfully deleted schedule ID " + scheduleId;
       console.log(message);
@@ -971,12 +979,11 @@ app.delete(baseApiPath + "/schedules/:id", function (req, res) {
         message: message,
       };
       do {
-        setTimeout(function() {
+        setTimeout(function () {
           getAllpoolSpaInfo();
-        }, 5000)
-      }
-      while(activeScheduleIds.has(scheduleId));
-      
+        }, 5000);
+      } while (activeScheduleIds.has(scheduleId));
+
       // aggregateScheduleIds();
       res.json(response);
     } else {
