@@ -135,7 +135,7 @@ function setNewCircuitState(circuitId, state) {
       const newState = state === 0 ? "off" : "on";
       console.log(`Circuit ${circuitId} set to ${newState}.`);
       client.close();
-      getAllpoolSpaInfo();
+      // getAllpoolSpaInfo();
     })
     .on("loginFailed", function () {
       console.log("Unable to login...refreshing client.");
@@ -578,6 +578,7 @@ function lightFunction(message) {
 }
 
 // Pump Info
+// Pump info moved to main info call
 // function getPumpStatus(pumpId, initial = true){
 //   // const pumps = poolSpaInfo.controllerConfig.pumps
 //   // console.log(pumpId)
