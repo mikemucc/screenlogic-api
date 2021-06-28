@@ -103,7 +103,10 @@ const poolSpaInfo = {
       },
       tempScale: ""}
     ],
-    pumps: {}
+    pumps: {},
+    device: {
+      currentStatus: "unknown"
+    }
   },
 };
 exports.poolSpaInfo = poolSpaInfo;

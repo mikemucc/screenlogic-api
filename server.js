@@ -19,6 +19,8 @@ const app = express();
 // const bodyParser = require('body-parser');
 const expressPort = process.env.PORT || 3000;
 const ScreenLogic = require("node-screenlogic");
+const predictSchedId = require("./predictSchedIds");
+const nextSchedId = predictSchedId.predictSchedId;
 const cors = require("cors");
 app.use(cors());
 
@@ -41,6 +43,7 @@ let slIpAddress = process.env.SL_IP_ADDRESS || null;
 let slPort = process.env.SL_PORT || 80;
 let slName = process.env.SL_NAME || null;
 const featuresInterface = process.env.FEATURES_LOCATION || "features";
+
 
 function findScreenLogic() {
   if (slIpAddress && slPort) {
@@ -911,9 +914,10 @@ app.get(baseApiPath + "/schedules", function (req, res) {
 app.post(baseApiPath + "/schedules/:type", function (req, res) {
   // Schedule Types: 0 = Normal, 1 = Run Once (Egg Timer)
   console.log(req.params);
+  const newSchedId = nextSchedId(activeScheduleIds);
   const newScheduleReturn = {
     status: "unknown",
-    scheduleId: null,
+    scheduleId: newSchedId,
   };
   if (poolSpaInfo.meta.successfulPolling) {
     if (req.params.type === "0" || req.params.type === "1") {
@@ -922,17 +926,22 @@ app.post(baseApiPath + "/schedules/:type", function (req, res) {
       client
         .on("loggedIn", function () {
           console.log("Logged in...");
-          this.addNewScheduleEvent(scheduleType);
+          this.deleteScheduleEventById(999);
+          setTimeout(function () {
+            client.addNewScheduleEvent(scheduleType);
+            }, 5000);
           console.log("Sending new event data...");
           // client.close();
         })
         .on("addNewScheduleEvent", function (newScheduleObj) {
+          client.close();
+          getAllpoolSpaInfo();
           console.log(newScheduleObj);
           newScheduleReturn.status = "success";
           newScheduleReturn.scheduleId = newScheduleObj.scheduleId;
           console.log("New Schedule Event ID is " + newScheduleObj.scheduleId);
           res.status(200).json(newScheduleObj.scheduleId);
-          client.close();
+          activeScheduleIds.add(newScheduleObj.scheduleId);
         });
       client.connect();
       // newScheduleReturn.status = "success";
@@ -967,25 +976,36 @@ app.delete(baseApiPath + "/schedules/:id", function (req, res) {
       const client = getSlClient();
       client.on("loggedIn", function () {
         console.log("Logged in...");
-        this.deleteScheduleEventById(scheduleId);
-        console.log("Sent delete schedule for ID " + scheduleId);
-        client.close();
+        //This call is to wake up the scheduler on the ScreenLogic
+        //Without it the subsequent delete/create call will hang.
+        this.deleteScheduleEventById(-1);
+        setTimeout(function () {
+          client.deleteScheduleEventById(scheduleId);
+          }, 5000);
+      })
+        // .on("getScheduleData", function(){
+        //   console.log("Sent delete schedule for ID " + scheduleId);
+        // })
+        .on("deleteScheduleEventById", function(){
+          client.close();
+          getAllpoolSpaInfo();
+          
+          const message = "Successfully deleted schedule ID " + scheduleId;
+          console.log(message);
+          const response = {
+            code: 200,
+            message: message,
+          };
+          res.json(response);
+          aggregateScheduleIds();
+          activeScheduleIds.delete(scheduleId);
       });
       client.connect();
-      const message = "Successfully deleted schedule ID " + scheduleId;
-      console.log(message);
-      const response = {
-        code: 200,
-        message: message,
-      };
-      do {
-        setTimeout(function () {
-          getAllpoolSpaInfo();
-        }, 5000);
-      } while (activeScheduleIds.has(scheduleId));
-
-      // aggregateScheduleIds();
-      res.json(response);
+      // do {
+      //   setTimeout(function () {
+      //     getAllpoolSpaInfo();
+      //   }, 5000);
+      // } while (activeScheduleIds.has(scheduleId));
     } else {
       const response = {
         code: 404,
