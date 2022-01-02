@@ -816,8 +816,18 @@ app.put(baseApiPath + "/spa/off", function (req, res) {
   res.json(response);
   console.log("Returned " + req.method + " " + req.route.path);
 });
+
 app.put(baseApiPath + "/lights/:command", function (req, res) {
   // console.log(req.params.command)
+  console.log('Got PUT command for lights: ' + req.params.command)
+  if(!req.params.command || req.params.command < 0 || req.params.command > 17){
+    res
+    .status(406)
+    .send(
+      '{"Error" : "The format of this request is ../lights/<command>. Command should be an integer between 0 and and 17, which corresponds to the various light commands available. Please see documentation for lights."}'
+    );
+  return; 
+  }
   lightFunction(req.params.command);
   const response = {
     lightCommand: req.params.command,
