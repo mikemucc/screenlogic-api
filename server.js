@@ -102,9 +102,9 @@ function setHeatMode(body, heatMode) {
         "Changed " + heatBody + " heater state to " + heaterModes[heatMode]
       );
       client.close();
-      setTimeout(function () {
-        getAllpoolSpaInfo();
-      }, 10000);
+      // setTimeout(function () {
+      //   // getAllPoolSpaInfo();
+      // }, 10000);
     })
     .on("loginFailed", function () {
       console.log("Unable to login... refreshing client.");
@@ -128,7 +128,7 @@ function setHeatSetPoint(body, temp) {
       console.log(heatBody + " setpoint Successfully changed to " + temp);
       client.close();
       setTimeout(function () {
-        getAllpoolSpaInfo();
+        // getAllPoolSpaInfo();
       }, 10000);
     })
     .on("loginFailed", function () {
@@ -158,7 +158,7 @@ function setNewCircuitState(circuitId, state) {
       console.log(`Circuit ${circuitId} set to ${newState}.`);
       client.close();
       // setTimeout(function() {
-      //   getAllpoolSpaInfo();
+      //   getAllPoolSpaInfo();
       // }, 10000);
     })
     .on("loginFailed", function () {
@@ -169,7 +169,7 @@ function setNewCircuitState(circuitId, state) {
   client.connect();
 }
 
-function getAllpoolSpaInfo() {
+function getAllPoolSpaInfo() {
   const client = getSlClient();
   const pollTime = Date.now();
   console.log("Poll for full ScreenLogic update at " + pollTime);
@@ -419,18 +419,18 @@ function getAllpoolSpaInfo() {
 }
 // exports.poolSpaInfo = poolSpaInfo;
 
-function poolSpaChangeListner() {
+function poolSpaChangeListener() {
   const client = getSlClient();
   client
     .on("loggedIn", function () {
-      console.log("Listner logged In...");
-      //set up listners...
+      console.log("Listener logged In...");
+      //set up Listeners...
       this.addClient(1234);
       this.getPoolStatus();
     })
     .on("poolStatus", function (status) {
       console.log("Got async poolStatus event...");
-      // console.log(status);
+      console.log(status);
       // console.log('Service Mode?');
       // console.log(status.isDeviceServiceMode());
       poolSpaInfo.meta.airTemp = status.airTemp;
@@ -494,7 +494,7 @@ function poolSpaChangeListner() {
       console.log("Unable to login...refreshing client.");
       client.close();
       findScreenLogic();
-      // poolSpaChangeListner();
+      // poolSpaChangeListener();
     });
   client.connect();
   // getAllSchedules(client);
@@ -527,9 +527,9 @@ function lightFunction(message) {
     .on("sentLightCommand", function () {
       console.log("Light Command Acknowledged");
       client.close();
-      setTimeout(function () {
-        getAllpoolSpaInfo();
-      }, 10000);
+      // setTimeout(function () {
+      //    getAllPoolSpaInfo();
+      // }, 10000);
     })
     .on("loginFailed", function () {
       console.log("Unable to login... refreshing client.");
@@ -663,15 +663,16 @@ app.listen(expressPort, function () {
 
   //Initial Call
   setTimeout(function () {
-    getAllpoolSpaInfo();
+    getAllPoolSpaInfo();
   }, 1000);
 
   setTimeout(function () {
-    poolSpaChangeListner();
+    poolSpaChangeListener();
   }, 5000);
 
   setInterval(function () {
-    getAllpoolSpaInfo();
+    getAllPoolSpaInfo();
+    poolSpaChangeListener();
   }, 60000);
 
   // aggregateScheduleIds();
@@ -768,8 +769,18 @@ app.put(baseApiPath + "/spa/off", function (req, res) {
   res.json(response);
   console.log("Returned " + req.method + " " + req.route.path);
 });
+
 app.put(baseApiPath + "/lights/:command", function (req, res) {
   // console.log(req.params.command)
+  console.log('Got PUT command for lights: ' + req.params.command)
+  if(!req.params.command || req.params.command < 0 || req.params.command > 17){
+    res
+    .status(406)
+    .send(
+      '{"Error" : "The format of this request is ../lights/<command>. Command should be an integer between 0 and and 17, which corresponds to the various light commands available. Please see documentation for lights."}'
+    );
+  return; 
+  }
   lightFunction(req.params.command);
   const response = {
     lightCommand: req.params.command,
@@ -935,7 +946,7 @@ app.post(baseApiPath + "/schedules/:type", function (req, res) {
         })
         .on("addNewScheduleEvent", function (newScheduleObj) {
           client.close();
-          getAllpoolSpaInfo();
+          // getAllPoolSpaInfo();
           console.log(newScheduleObj);
           newScheduleReturn.status = "success";
           newScheduleReturn.scheduleId = newScheduleObj.scheduleId;
@@ -988,7 +999,7 @@ app.delete(baseApiPath + "/schedules/:id", function (req, res) {
         // })
         .on("deleteScheduleEventById", function(){
           client.close();
-          getAllpoolSpaInfo();
+          // getAllPoolSpaInfo();
           
           const message = "Successfully deleted schedule ID " + scheduleId;
           console.log(message);
@@ -1003,7 +1014,7 @@ app.delete(baseApiPath + "/schedules/:id", function (req, res) {
       client.connect();
       // do {
       //   setTimeout(function () {
-      //     getAllpoolSpaInfo();
+      //     getAllPoolSpaInfo();
       //   }, 5000);
       // } while (activeScheduleIds.has(scheduleId));
     } else {
