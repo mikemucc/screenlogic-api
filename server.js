@@ -135,7 +135,7 @@ function setNewCircuitState(circuitId, state) {
       const newState = state === 0 ? "off" : "on";
       console.log(`Circuit ${circuitId} set to ${newState}.`);
       client.close();
-      // getAllpoolSpaInfo();
+      // getAllPoolSpaInfo();
     })
     .on("loginFailed", function () {
       console.log("Unable to login...refreshing client.");
@@ -145,7 +145,7 @@ function setNewCircuitState(circuitId, state) {
   client.connect();
 }
 
-function getAllpoolSpaInfo() {
+function getAllPoolSpaInfo() {
   poolSpaInfo.meta.pollInProgress = true;
   const client = getSlClient();
   const pollTime = Date.now();
@@ -388,7 +388,7 @@ function getAllpoolSpaInfo() {
 }
 // exports.poolSpaInfo = poolSpaInfo;
 
-function poolSpaChangeListner() {
+function poolSpaChangeListener() {
   const client = getSlClient();
   client
     .on("loggedIn", function () {
@@ -532,7 +532,7 @@ function poolSpaChangeListner() {
       console.log("Unable to login...refreshing client.");
       client.close();
       findScreenLogic();
-      poolSpaChangeListner();
+      poolSpaChangeListener();
     });
   client.connect();
   // getAllSchedules(client);
@@ -701,22 +701,23 @@ app.listen(expressPort, function () {
 
   //Initial Call
   setTimeout(function() {
-    getAllpoolSpaInfo();
+    getAllPoolSpaInfo();
   }, 1000)
 
   setTimeout(function(){
-    poolSpaChangeListner();
+    poolSpaChangeListener();
   }, 5000)
 
   setInterval(function() {
-    getAllpoolSpaInfo();
+    getAllPoolSpaInfo();
+    poolSpaChangeListener();
   }, 600000)
   
   // aggregateScheduleIds();
   // setInterval(function () {
   //   console.log('Polling...')
   //   if (!poolSpaInfo.meta.pollInProgress){
-  //     getAllpoolSpaInfo();
+  //     getAllPoolSpaInfo();
   //     if (poolSpaInfo.meta.successfulPolling){
   //       aggregateScheduleIds();
 
