@@ -560,14 +560,11 @@ function lightFunction(message) {
     .on("loggedIn", function () {
       console.log("Logged in");
       this.sendLightCommand(clientInt, message);
-    })
-    .on("sentLightCommand", function () {
       console.log("Light Command sent");
     })
     .on("sentLightCommand", function () {
       console.log("Light Command Acknowledged");
       client.close();
-      // getAllpoolSpaInfo();
     })
     .on("loginFailed", function () {
       console.log("Unable to login... refreshing client.");
