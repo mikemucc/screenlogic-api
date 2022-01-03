@@ -430,7 +430,7 @@ function poolSpaChangeListener() {
     })
     .on("poolStatus", function (status) {
       console.log("Got async poolStatus event...");
-      console.log(status);
+      // console.log(status);
       // console.log('Service Mode?');
       // console.log(status.isDeviceServiceMode());
       poolSpaInfo.meta.airTemp = status.airTemp;
@@ -672,7 +672,7 @@ app.listen(expressPort, function () {
 
   setInterval(function () {
     getAllPoolSpaInfo();
-    poolSpaChangeListener();
+    // poolSpaChangeListener();
   }, 60000);
 
   // aggregateScheduleIds();

@@ -1,7 +1,7 @@
 # FROM node:lts-alpine
 # FROM node:15-alpine
 
-FROM node:15-stretch-slim
+FROM node:17-bullseye-slim
 
 
 COPY package*.json /usr/src/app/
