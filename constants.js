@@ -18,8 +18,9 @@ const bodyMap = {
 exports.bodyMap = bodyMap;
 const poolSpaInfo = {
   schedules: {
-    eventIds: new Set(),
-    daily: []
+    eventIds: [],
+    daily: [],
+    runOnce: []
   },
   meta: {
     lastUpdated: new Number(),
@@ -102,12 +103,14 @@ const poolSpaInfo = {
       },
       tempScale: ""}
     ],
-    pumps: {}
+    pumps: {},
+    device: {
+      currentStatus: "unknown"
+    }
   },
 };
 exports.poolSpaInfo = poolSpaInfo;
-// I need an object in the global context to keep track of new schedule IDs because... javascript.
-// var newScheduleId = null;
+
 const rawObjects = {
   meta: {
     lastUpdated: null,
@@ -135,7 +138,8 @@ const scheduleTypeMap = {
 };
 exports.scheduleTypeMap = scheduleTypeMap;
 
-const pumpsSenderBase = 30;
-exports.pumpsSenderBase = pumpsSenderBase;
 const schedulesSenderBase = 50;
 exports.schedulesSenderBase = schedulesSenderBase;
+
+const pumpsSenderBase = 30;
+exports.pumpsSenderBase = pumpsSenderBase;
