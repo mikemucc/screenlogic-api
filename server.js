@@ -923,7 +923,7 @@ app.get(baseApiPath + "/schedules", function (req, res) {
 });
 
 app.post(baseApiPath + "/schedules/:type", function (req, res) {
-  // Schedule Types: 0 = Normal, 1 = Run Once (Egg Timer)
+  // Schedule Types: 0 = Normal, 1 = Run Once
   console.log(req.params);
   const newSchedId = nextSchedId(activeScheduleIds);
   const newScheduleReturn = {
@@ -937,7 +937,6 @@ app.post(baseApiPath + "/schedules/:type", function (req, res) {
       client
         .on("loggedIn", function () {
           console.log("Logged in...");
-          this.deleteScheduleEventById(999);
           setTimeout(function () {
             client.addNewScheduleEvent(scheduleType);
             }, 5000);
@@ -951,7 +950,7 @@ app.post(baseApiPath + "/schedules/:type", function (req, res) {
           newScheduleReturn.status = "success";
           newScheduleReturn.scheduleId = newScheduleObj.scheduleId;
           console.log("New Schedule Event ID is " + newScheduleObj.scheduleId);
-          res.status(200).json(newScheduleObj.scheduleId);
+          res.status(200).json(newScheduleReturn);
           activeScheduleIds.add(newScheduleObj.scheduleId);
         });
       client.connect();
@@ -1004,7 +1003,7 @@ app.delete(baseApiPath + "/schedules/:id", function (req, res) {
           const message = "Successfully deleted schedule ID " + scheduleId;
           console.log(message);
           const response = {
-            code: 200,
+            status: "success",
             message: message,
           };
           res.json(response);
@@ -1020,7 +1019,7 @@ app.delete(baseApiPath + "/schedules/:id", function (req, res) {
     } else {
       const response = {
         code: 404,
-        message: "Schedule ID Not Found",
+        status: "Schedule ID Not Found",
         scheduleId: scheduleId,
       };
       res.status(404).send(response);
