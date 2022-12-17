@@ -15,7 +15,7 @@
   "dependencies": {
     "cors": "^2.8.5",
     "express": "^4.18.2",
-    "node-screenlogic": "github:parnic/node-screenlogic"
+    "node-screenlogic": "^1.10.1"
   },
   "devDependencies": {
     "nodemon": "^2.0.20"
