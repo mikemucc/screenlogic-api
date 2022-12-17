@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 "use strict";
 
-const { equipFlagsMeanings } = require("./equipFlagsMeanings");
 const {
   poolSpaInfo,
   bodyMap,
@@ -308,8 +307,20 @@ function getAllPoolSpaInfo() {
         spaMaxSetPoint: config.maxSetPoint[1],
         interfaceTabFlags: config.interfaceTabFlags,
         equipFlags: config.equipFlags,
-        equipPresent: equipFlagsMeanings[config.equipFlags],
       };
+      poolSpaInfo.controllerConfig.equipPresent = {
+        heater: true,
+        solar: config.hasSolar(),
+        solarisheater: config.hasSolarAsHeatpump(),
+        chlorinator: config.hasChlorinator(),
+        cooler: config.hasCooling(),
+        intellichem: config.hasIntellichem(),
+        isEasyTouch: config.isEasyTouch(),
+        isIntelliTouch: config.isIntelliTouch(),
+        isEasyTouchLite: config.isEasyTouchLite(),
+        isDualBody: config.isDualBody(),
+        isChem2: config.isChem2()
+      }
       poolSpaInfo.chemistry.intellichemInstalled = config.hasIntellichem();
       poolSpaInfo.status.bodies.forEach(function (v, i) {
         v.heater.equipPresent.heater =
