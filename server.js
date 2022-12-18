@@ -211,6 +211,7 @@ function getAllPoolSpaInfo() {
       poolSpaInfo.meta.serviceMode = status.isDeviceServiceMode();
       poolSpaInfo.meta.freezeMode = status.freezeMode;
       poolSpaInfo.meta.cleanerDelay = status.cleanerDelay;
+      poolSpaInfo.meta.heaterActive = status.heatStatus[0] > 0 || status.heatStatus[1] > 0
 
       let poolActive = false;
       try {
