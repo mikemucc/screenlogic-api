@@ -47,10 +47,10 @@ You can modify the behavoir of the server with the following environment variabl
 
 | Endpoint | Function | Notes |
 |----------|----------|-------|
-|`/api/pool/on` | Set the screenlogic device to pool mode and turn it on | This is the functional equilivent of sending `PUT /api/505/1` |
-|`/api/pool/off` | Set the screenlogic device to pool mode and turn it on| This is the functional equilivent of sending `PUT /api/505/0` |
-|`/api/spa/on` | Set the screenlogic device to spa mode and turn it on | This is the functional equilivent of sending `PUT /api/500/1` |
-| `/api/spa/off` | Set the screenlogic device to spa mode and turn it on | This is the functional equilivent of sending `PUT /api/500/0`|
+|`/api/pool/on` | Set the screenlogic device to pool mode and turn it on | This is the functional equilivent of sending `PUT /api/circuit/505/1` |
+|`/api/pool/off` | Set the screenlogic device to pool mode and turn it on| This is the functional equilivent of sending `PUT /api/circuit/505/0` |
+|`/api/spa/on` | Set the screenlogic device to spa mode and turn it on | This is the functional equilivent of sending `PUT /api/circuit/500/1` |
+| `/api/spa/off` | Set the screenlogic device to spa mode and turn it on | This is the functional equilivent of sending `PUT /api/circuit/500/0`|
 
 #### Heater Control
 
